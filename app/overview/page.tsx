@@ -68,7 +68,7 @@ export default async function OverviewPage({
         </div>
         
         <div className="flex gap-4">
-          {/* Back Button - Fixed Colors */}
+          {/* Back Button */}
           <Link 
             href="/" 
             className="px-4 py-2 bg-white border border-gray-300 rounded hover:bg-gray-100 text-black font-medium transition"
@@ -76,7 +76,7 @@ export default async function OverviewPage({
             ← Back to Stores
           </Link>
           
-          {/* Week Selector - Fixed Colors */}
+          {/* Week Selector */}
           <div className="flex bg-white border border-gray-300 rounded-lg overflow-hidden text-black shadow-sm">
             <Link 
               href={`/overview?date=${prevDateStr}`} 
@@ -128,13 +128,12 @@ export default async function OverviewPage({
 
                 {/* Days Columns */}
                 {weekDays.map(day => {
-                  // Find shifts for this Store AND this Day
                   const shifts = allShifts?.filter(s => 
                     s.store_id === store.id && 
                     s.start_time.startsWith(day.isoDate)
                   );
 
-                  // Sort by start time
+                  // Sort by start time so Openers are at the top
                   shifts?.sort((a, b) => a.start_time.localeCompare(b.start_time));
 
                   return (
@@ -148,20 +147,27 @@ export default async function OverviewPage({
                         
                         {shifts?.map(shift => {
                           const isManager = shift.profiles?.role?.trim() === 'Manager';
+                          
+                          // Format Time: "6a - 2p"
+                          const start = new Date(shift.start_time).toLocaleTimeString([], {hour: 'numeric', hour12: true}).replace(':00', '').toLowerCase();
+                          const end = new Date(shift.end_time).toLocaleTimeString([], {hour: 'numeric', hour12: true}).replace(':00', '').toLowerCase();
+                          
                           return (
                             <div 
                               key={shift.id} 
-                              className={`text-[10px] p-1.5 rounded border mb-1 truncate ${
+                              className={`text-[10px] p-1.5 rounded border mb-1 flex justify-between items-center ${
                                 isManager 
                                   ? 'bg-purple-100 border-purple-300 text-purple-900 font-bold' 
                                   : 'bg-white border-gray-200 text-gray-600'
                               }`}
                             >
-                              {isManager && <span className="mr-1">★</span>}
-                              {shift.profiles?.full_name.split(' ')[0]}
-                              <span className="ml-1 opacity-75">
-                                {new Date(shift.start_time).getHours()}-{new Date(shift.end_time).getHours()}
-                              </span>
+                              <div className="truncate font-bold max-w-[60px]">
+                                {isManager && <span className="mr-1 text-purple-600">★</span>}
+                                {shift.profiles?.full_name.split(' ')[0]}
+                              </div>
+                              <div className="text-[9px] opacity-75 whitespace-nowrap ml-1">
+                                {start}-{end}
+                              </div>
                             </div>
                           );
                         })}
