@@ -18,7 +18,7 @@ type DayInfo = {
 type Props = {
   storeId: string;
   staffList: any[];
-  weekDays: DayInfo[]; // We now accept the list of days!
+  weekDays: DayInfo[]; 
 };
 
 export default function AddShiftModal({ storeId, staffList, weekDays }: Props) {
@@ -92,7 +92,7 @@ export default function AddShiftModal({ storeId, staffList, weekDays }: Props) {
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Staff Member</label>
                 <select 
-                  className="w-full border p-3 rounded-lg bg-gray-50 font-medium"
+                  className="w-full border p-3 rounded-lg bg-gray-50 font-medium text-gray-900" 
                   value={staffId}
                   onChange={(e) => setStaffId(e.target.value)}
                   required
@@ -106,11 +106,11 @@ export default function AddShiftModal({ storeId, staffList, weekDays }: Props) {
                 </select>
               </div>
 
-              {/* DATE SELECTOR (Fixed to Start on Monday) */}
+              {/* DATE SELECTOR */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Date</label>
                 <select 
-                  className="w-full border p-3 rounded-lg bg-gray-50 font-medium"
+                  className="w-full border p-3 rounded-lg bg-gray-50 font-medium text-gray-900"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   required
@@ -129,7 +129,7 @@ export default function AddShiftModal({ storeId, staffList, weekDays }: Props) {
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Start Time</label>
                   <input 
                     type="time" 
-                    className="w-full border p-3 rounded-lg bg-gray-50"
+                    className="w-full border p-3 rounded-lg bg-gray-50 text-gray-900"
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
                     required 
@@ -139,7 +139,7 @@ export default function AddShiftModal({ storeId, staffList, weekDays }: Props) {
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">End Time</label>
                   <input 
                     type="time" 
-                    className="w-full border p-3 rounded-lg bg-gray-50"
+                    className="w-full border p-3 rounded-lg bg-gray-50 text-gray-900"
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
                     required 
