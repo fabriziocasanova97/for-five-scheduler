@@ -49,10 +49,9 @@ export default async function StorePage(props: Props) {
   const { data: store } = await supabase.from('stores').select('*').eq('id', storeId).single();
   const { data: staffList } = await supabase.from('profiles').select('*').order('full_name');
   
-  // *** THIS IS THE CRITICAL LINE ***
   const { data: allShifts } = await supabase
     .from('shifts')
-    .select(`*, profiles ( full_name, role )`) // We request 'role' here
+    .select(`*, profiles ( full_name, role )`) 
     .eq('store_id', storeId);
 
   // Filter shifts
@@ -91,7 +90,14 @@ export default async function StorePage(props: Props) {
             </Link>
             <h1 className="text-3xl font-bold text-gray-900">{store?.name}</h1>
           </div>
-          <AddShiftModal storeId={storeId} staffList={staffList || []} />
+          
+          {/* UPDATED MODAL USAGE HERE */}
+          <AddShiftModal 
+            storeId={storeId} 
+            staffList={staffList || []} 
+            weekDays={weekDays} 
+          />
+
         </div>
 
         {/* NAVIGATION & SUMMARY */}

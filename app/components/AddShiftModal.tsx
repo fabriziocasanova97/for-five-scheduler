@@ -1,47 +1,73 @@
-'use client'; 
+'use client';
 
 import { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 
-// Setup Supabase (Client Side)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default function AddShiftModal({ storeId, staffList }: { storeId: string, staffList: any[] }) {
+type DayInfo = {
+  isoDate: string;
+  name: string;
+  dateLabel: string;
+};
+
+type Props = {
+  storeId: string;
+  staffList: any[];
+  weekDays: DayInfo[]; // We now accept the list of days!
+};
+
+export default function AddShiftModal({ storeId, staffList, weekDays }: Props) {
   const [isOpen, setIsOpen] = useState(false);
-  const router = useRouter(); // To refresh page after save
+  const router = useRouter();
 
   // Form State
-  const [userId, setUserId] = useState('');
-  const [date, setDate] = useState('');
-  const [start, setStart] = useState('09:00');
-  const [end, setEnd] = useState('17:00');
+  const [staffId, setStaffId] = useState('');
+  
+  // Default to the first day of the view (Monday)
+  const [date, setDate] = useState(weekDays[0]?.isoDate || '');
+  
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('17:00');
   const [loading, setLoading] = useState(false);
+
+  // Update date if week changes
+  const handleOpen = () => {
+    setIsOpen(true);
+    // Ensure we default to the current view's Monday if not set
+    if (!date || !weekDays.find(d => d.isoDate === date)) {
+        setDate(weekDays[0].isoDate);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!staffId || !date) return;
+    
     setLoading(true);
 
-    // --- TIMEZONE FIX ---
-    const startObj = new Date(`${date}T${start}`);
-    const endObj = new Date(`${date}T${end}`);
+    // Combine Date + Time
+    const startIso = `${date}T${startTime}:00`;
+    const endIso = `${date}T${endTime}:00`;
 
     const { error } = await supabase.from('shifts').insert({
       store_id: storeId,
-      user_id: userId,
-      start_time: startObj.toISOString(),
-      end_time: endObj.toISOString()
+      profile_id: staffId,
+      start_time: startIso,
+      end_time: endIso
     });
-    // --------------------
 
     if (error) {
-      alert('Error saving shift: ' + error.message);
+      alert(error.message);
     } else {
-      setIsOpen(false); // Close modal
-      router.refresh(); // Refresh the schedule
+      setIsOpen(false);
+      router.refresh();
+      // Optional: Reset form
+      setStaffId('');
     }
     setLoading(false);
   };
@@ -49,88 +75,96 @@ export default function AddShiftModal({ storeId, staffList }: { storeId: string,
   return (
     <>
       <button 
-        onClick={() => setIsOpen(true)}
-        className="bg-black text-white px-6 py-3 rounded-lg font-bold hover:bg-gray-800 transition shadow-lg"
+        onClick={handleOpen}
+        className="bg-black text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-800 transition shadow-md"
       >
         + Add Shift
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="bg-white p-8 rounded-xl w-96 shadow-2xl border border-gray-200">
-            <h2 className="text-2xl font-bold mb-6 text-gray-900">Add New Shift</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4 text-gray-900">Add New Shift</h2>
             
-            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               
-              {/* Staff Select - Fixed Text Color */}
+              {/* STAFF SELECTOR */}
               <div>
-                <label className="block text-sm font-bold mb-2 text-gray-700">Staff Member</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Staff Member</label>
                 <select 
-                  className="w-full border border-gray-300 p-2.5 rounded-lg text-black bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full border p-3 rounded-lg bg-gray-50 font-medium"
+                  value={staffId}
+                  onChange={(e) => setStaffId(e.target.value)}
                   required
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
                 >
-                  <option value="" className="text-gray-500">-- Select Barista --</option>
-                  {staffList.map((person) => (
-                    <option key={person.id} value={person.id} className="text-black">
+                  <option value="">-- Select Staff --</option>
+                  {staffList.map(person => (
+                    <option key={person.id} value={person.id}>
                       {person.full_name} ({person.role})
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Date Input - Fixed Text Color */}
+              {/* DATE SELECTOR (Fixed to Start on Monday) */}
               <div>
-                <label className="block text-sm font-bold mb-2 text-gray-700">Date</label>
-                <input 
-                  type="date" 
-                  className="w-full border border-gray-300 p-2.5 rounded-lg text-black bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                  required 
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Date</label>
+                <select 
+                  className="w-full border p-3 rounded-lg bg-gray-50 font-medium"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                />
+                  required
+                >
+                  {weekDays.map(day => (
+                    <option key={day.isoDate} value={day.isoDate}>
+                      {day.name}, {day.dateLabel}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {/* Time Range - Fixed Text Color */}
+              {/* TIME SELECTORS */}
               <div className="flex gap-4">
-                <div className="w-1/2">
-                  <label className="block text-sm font-bold mb-2 text-gray-700">Start</label>
+                <div className="flex-1">
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Start Time</label>
                   <input 
                     type="time" 
-                    className="w-full border border-gray-300 p-2.5 rounded-lg text-black bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={start}
-                    onChange={(e) => setStart(e.target.value)}
+                    className="w-full border p-3 rounded-lg bg-gray-50"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    required 
                   />
                 </div>
-                <div className="w-1/2">
-                  <label className="block text-sm font-bold mb-2 text-gray-700">End</label>
+                <div className="flex-1">
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">End Time</label>
                   <input 
                     type="time" 
-                    className="w-full border border-gray-300 p-2.5 rounded-lg text-black bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={end}
-                    onChange={(e) => setEnd(e.target.value)}
+                    className="w-full border p-3 rounded-lg bg-gray-50"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    required 
                   />
                 </div>
               </div>
 
-              {/* Buttons */}
-              <div className="flex justify-end gap-3 mt-4 pt-4 border-t">
+              {/* BUTTONS */}
+              <div className="flex gap-3 mt-4">
                 <button 
-                  type="button"
+                  type="button" 
                   onClick={() => setIsOpen(false)}
-                  className="px-4 py-2 text-gray-600 font-medium hover:text-black hover:bg-gray-100 rounded-lg transition"
+                  className="flex-1 py-3 text-gray-600 font-bold hover:bg-gray-100 rounded-lg"
                 >
                   Cancel
                 </button>
                 <button 
-                  type="submit"
+                  type="submit" 
                   disabled={loading}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                  className="flex-1 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-lg disabled:opacity-50"
                 >
                   {loading ? 'Saving...' : 'Save Shift'}
                 </button>
               </div>
+
             </form>
           </div>
         </div>
