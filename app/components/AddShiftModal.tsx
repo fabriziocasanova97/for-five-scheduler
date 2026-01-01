@@ -54,9 +54,10 @@ export default function AddShiftModal({ storeId, staffList, weekDays }: Props) {
     const startIso = `${date}T${startTime}:00`;
     const endIso = `${date}T${endTime}:00`;
 
+    // *** FIX: Changed profile_id to user_id ***
     const { error } = await supabase.from('shifts').insert({
       store_id: storeId,
-      profile_id: staffId,
+      user_id: staffId, 
       start_time: startIso,
       end_time: endIso
     });
