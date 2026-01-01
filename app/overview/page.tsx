@@ -68,20 +68,36 @@ export default async function OverviewPage({
         </div>
         
         <div className="flex gap-4">
-          <Link href="/" className="px-4 py-2 bg-white border rounded hover:bg-gray-50">
+          {/* Back Button - Fixed Colors */}
+          <Link 
+            href="/" 
+            className="px-4 py-2 bg-white border border-gray-300 rounded hover:bg-gray-100 text-black font-medium transition"
+          >
             ← Back to Stores
           </Link>
-          <div className="flex bg-white border rounded-lg overflow-hidden">
-            <Link href={`/overview?date=${prevDateStr}`} className="px-3 py-2 hover:bg-gray-100 border-r">←</Link>
-            <span className="px-4 py-2 font-bold text-sm flex items-center">
+          
+          {/* Week Selector - Fixed Colors */}
+          <div className="flex bg-white border border-gray-300 rounded-lg overflow-hidden text-black shadow-sm">
+            <Link 
+              href={`/overview?date=${prevDateStr}`} 
+              className="px-3 py-2 hover:bg-gray-100 border-r border-gray-200 text-gray-700"
+            >
+              ←
+            </Link>
+            <span className="px-4 py-2 font-bold text-sm flex items-center text-gray-900">
               Week of {weekDays[0].isoDate}
             </span>
-            <Link href={`/overview?date=${nextDateStr}`} className="px-3 py-2 hover:bg-gray-100 border-l">→</Link>
+            <Link 
+              href={`/overview?date=${nextDateStr}`} 
+              className="px-3 py-2 hover:bg-gray-100 border-l border-gray-200 text-gray-700"
+            >
+              →
+            </Link>
           </div>
         </div>
       </div>
 
-      {/* MASTER GRID CONTAINER (Horizontal Scroll for small screens) */}
+      {/* MASTER GRID CONTAINER */}
       <div className="overflow-x-auto border rounded-lg shadow bg-white">
         <table className="w-full text-left border-collapse min-w-[1200px]">
           <thead>
@@ -142,7 +158,7 @@ export default async function OverviewPage({
                               }`}
                             >
                               {isManager && <span className="mr-1">★</span>}
-                              {shift.profiles?.full_name.split(' ')[0]} {/* First Name only */}
+                              {shift.profiles?.full_name.split(' ')[0]}
                               <span className="ml-1 opacity-75">
                                 {new Date(shift.start_time).getHours()}-{new Date(shift.end_time).getHours()}
                               </span>
