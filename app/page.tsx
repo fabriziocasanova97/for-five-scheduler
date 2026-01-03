@@ -1,6 +1,9 @@
 // @ts-nocheck
+'use client';
+
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import LogoutButton from './components/LogoutButton';
 import { isBoss } from './utils/roles';
 
@@ -9,26 +12,40 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export const dynamic = 'force-dynamic';
+export default function Home() {
+  const [user, setUser] = useState(null);
+  const [stores, setStores] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [amIBoss, setAmIBoss] = useState(false);
 
-export default async function Home() {
-  const { data: { user } } = await supabase.auth.getUser();
-  const { data: stores } = await supabase.from('stores').select('*').order('name');
-  
-  // 1. CHECK BOSS STATUS
-  const amIBoss = isBoss(user?.email);
+  useEffect(() => {
+    const fetchData = async () => {
+      // 1. Ask the BROWSER who is logged in
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      
+      // 2. Check Permissions immediately
+      if (user?.email) {
+        setAmIBoss(isBoss(user.email));
+      }
+
+      // 3. Get Stores
+      const { data: storesData } = await supabase.from('stores').select('*').order('name');
+      setStores(storesData || []);
+      
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4">
       
-      {/* --- 🕵️‍♂️ SPY BOX (TEMPORARY) --- */}
-      <div className="w-full max-w-4xl bg-yellow-300 border-4 border-yellow-500 p-4 mb-8 text-black font-mono rounded text-center">
-        <strong>DEBUG MODE:</strong><br/>
-        YOUR EMAIL IS: "{user?.email}"<br/>
-        ARE YOU BOSS?: {amIBoss ? "YES ✅" : "NO ❌"}
-      </div>
-      {/* ------------------------------- */}
-
       {/* HEADER WITH LOGOUT */}
       <div className="w-full max-w-4xl flex justify-end mb-4">
         <LogoutButton />
@@ -40,7 +57,7 @@ export default async function Home() {
             Your Stores
           </h1>
 
-          {/* MASTER BUTTON (Only shows if YES ✅) */}
+          {/* MASTER VIEW BUTTON (Only visible if you are Boss) */}
           {amIBoss && (
             <Link 
               href="/overview"
@@ -51,8 +68,15 @@ export default async function Home() {
           )}
         </div>
 
+        {/* ACCESS RESTRICTED MESSAGE FOR STAFF */}
+        {!amIBoss && (
+          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-8 text-center font-bold">
+            Access Restricted: Please contact your manager for your schedule link.
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {stores?.map((store) => (
+          {stores.map((store) => (
             <Link 
               key={store.id} 
               href={`/store/${store.id}`}
