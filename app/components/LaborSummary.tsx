@@ -1,39 +1,49 @@
 // @ts-nocheck
 'use client';
 
-// notice we added 'amIBoss' here vvv
 export default function LaborSummary({ shifts, amIBoss = false }) {
   
-  // 1. SECURITY CHECK: If I don't have the "Boss Badge", hide myself.
+  // 1. SECURITY CHECK: Only Bosses see this list
   if (!amIBoss) return null;
 
-  // 2. Calculate Totals
-  const totalHours = shifts.reduce((sum, shift) => {
+  // 2. Calculate Hours Per Person
+  const staffHours = {};
+
+  shifts.forEach(shift => {
+    const name = shift.profiles?.full_name || 'Unknown';
     const start = new Date(shift.start_time);
     const end = new Date(shift.end_time);
     const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-    return sum + hours;
-  }, 0);
 
-  // Example Rate: $15/hr
-  const estimatedCost = totalHours * 15;
+    if (!staffHours[name]) {
+      staffHours[name] = 0;
+    }
+    staffHours[name] += hours;
+  });
+
+  // Sort them: People with the most hours go to the top
+  const report = Object.entries(staffHours).sort((a: any, b: any) => b[1] - a[1]);
 
   return (
-    <div className="bg-white p-4 rounded-lg border shadow-sm flex flex-col gap-1 min-w-[200px]">
-      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-        Est. Labor Cost
+    <div className="bg-white p-4 rounded-lg border shadow-sm w-full max-w-sm">
+      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide border-b pb-2 mb-2">
+        Weekly Hours Summary
       </h3>
-      <div className="flex items-baseline gap-2">
-        <span className="text-2xl font-bold text-gray-900">
-          ${estimatedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </span>
-        <span className="text-sm text-gray-500 font-medium">
-          ({totalHours.toFixed(1)} hrs)
-        </span>
+      
+      <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-2">
+        {report.map(([name, hours]: any) => (
+          <div key={name} className="flex justify-between items-center text-sm">
+            <span className="text-gray-700 font-medium">{name}</span>
+            <span className="text-gray-900 font-bold bg-gray-100 px-2 py-0.5 rounded text-xs">
+              {hours.toFixed(1)} hrs
+            </span>
+          </div>
+        ))}
+
+        {report.length === 0 && (
+          <p className="text-gray-400 text-xs italic">No shifts scheduled yet.</p>
+        )}
       </div>
-      <p className="text-[10px] text-gray-400 mt-1">
-        Based on $15/hr avg
-      </p>
     </div>
   );
 }
