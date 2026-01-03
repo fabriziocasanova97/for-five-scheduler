@@ -68,12 +68,7 @@ export default function Home() {
           )}
         </div>
 
-        {/* ACCESS RESTRICTED MESSAGE FOR STAFF */}
-        {!amIBoss && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-8 text-center font-bold">
-            Access Restricted: Please contact your manager for your schedule link.
-          </div>
-        )}
+        {/* RED BOX REMOVED FROM HERE */}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {stores.map((store) => (
