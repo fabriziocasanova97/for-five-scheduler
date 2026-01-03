@@ -15,12 +15,20 @@ export default async function Home() {
   const { data: { user } } = await supabase.auth.getUser();
   const { data: stores } = await supabase.from('stores').select('*').order('name');
   
-  // 1. CHECK IF USER IS A BOSS
+  // 1. CHECK BOSS STATUS
   const amIBoss = isBoss(user?.email);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4">
       
+      {/* --- 🕵️‍♂️ SPY BOX (TEMPORARY) --- */}
+      <div className="w-full max-w-4xl bg-yellow-300 border-4 border-yellow-500 p-4 mb-8 text-black font-mono rounded text-center">
+        <strong>DEBUG MODE:</strong><br/>
+        YOUR EMAIL IS: "{user?.email}"<br/>
+        ARE YOU BOSS?: {amIBoss ? "YES ✅" : "NO ❌"}
+      </div>
+      {/* ------------------------------- */}
+
       {/* HEADER WITH LOGOUT */}
       <div className="w-full max-w-4xl flex justify-end mb-4">
         <LogoutButton />
@@ -32,7 +40,7 @@ export default async function Home() {
             Your Stores
           </h1>
 
-          {/* --- HERE IS THE MASTER BUTTON (Only shows if Boss) --- */}
+          {/* MASTER BUTTON (Only shows if YES ✅) */}
           {amIBoss && (
             <Link 
               href="/overview"
@@ -43,7 +51,6 @@ export default async function Home() {
           )}
         </div>
 
-        {/* --- HERE ARE THE STORE BUTTONS (They are still here!) --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {stores?.map((store) => (
             <Link 
@@ -65,13 +72,6 @@ export default async function Home() {
             </Link>
           ))}
         </div>
-
-        {/* Staff Warning (Only shows if NOT Boss) */}
-        {!amIBoss && (
-          <div className="mt-8 text-center text-gray-400 text-sm">
-            Select a store above to view your schedule.
-          </div>
-        )}
       </div>
     </div>
   );

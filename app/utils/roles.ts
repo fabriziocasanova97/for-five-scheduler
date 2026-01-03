@@ -1,7 +1,6 @@
 // --- 1. THE LIST OF BOSS EMAILS ---
 // Make sure to put your real email inside the quotes!
 export const BOSS_EMAILS = [
-  'fabriziocasanova97@gmail.com',
   'dusan@forfivecoffee.com',
   'will@forfivecoffee.com',
   'escummings901@gmail.com'
