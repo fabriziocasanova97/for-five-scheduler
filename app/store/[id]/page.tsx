@@ -126,7 +126,10 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
           </div>
 
           {/* SECURE LABOR SUMMARY COMPONENT */}
-          <LaborSummary shifts={currentWeekShifts} />
+          <LaborSummary 
+  shifts={currentWeekShifts} 
+  amIBoss={amIBoss}  // <--- ADD THIS LINE
+/>
 
         </div>
       </div>
