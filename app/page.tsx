@@ -13,9 +13,9 @@ export const dynamic = 'force-dynamic';
 
 export default async function Home() {
   const { data: { user } } = await supabase.auth.getUser();
-  const { data: stores } = await supabase.from('stores').select('*');
+  const { data: stores } = await supabase.from('stores').select('*').order('name');
   
-  // CHECK BOSS STATUS
+  // 1. CHECK IF USER IS A BOSS
   const amIBoss = isBoss(user?.email);
 
   return (
@@ -32,7 +32,7 @@ export default async function Home() {
             Your Stores
           </h1>
 
-          {/* MASTER VIEW BUTTON (BOSS ONLY) */}
+          {/* --- HERE IS THE MASTER BUTTON (Only shows if Boss) --- */}
           {amIBoss && (
             <Link 
               href="/overview"
@@ -43,13 +43,7 @@ export default async function Home() {
           )}
         </div>
 
-        {/* ACCESS RESTRICTED MESSAGE FOR STAFF */}
-        {!amIBoss && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-8 text-center font-bold">
-            Access Restricted: Please contact your manager for your schedule link.
-          </div>
-        )}
-
+        {/* --- HERE ARE THE STORE BUTTONS (They are still here!) --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {stores?.map((store) => (
             <Link 
@@ -71,6 +65,13 @@ export default async function Home() {
             </Link>
           ))}
         </div>
+
+        {/* Staff Warning (Only shows if NOT Boss) */}
+        {!amIBoss && (
+          <div className="mt-8 text-center text-gray-400 text-sm">
+            Select a store above to view your schedule.
+          </div>
+        )}
       </div>
     </div>
   );
