@@ -10,7 +10,14 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default function AddShiftModal({ storeId, staffList, weekDays }) {
+// Added 'amIBoss' to the list of inputs below
+export default function AddShiftModal({ storeId, staffList, weekDays, amIBoss = false }) {
+  
+  // --- SECURITY CHECK ---
+  // If the user is NOT a boss, hide this entire component immediately.
+  if (!amIBoss) return null;
+  // ----------------------
+
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
 
@@ -37,7 +44,7 @@ export default function AddShiftModal({ storeId, staffList, weekDays }) {
     
     setLoading(true);
 
-    // *** FIX: Convert Local Time to UTC ***
+    // Convert Local Time to UTC
     const startDate = new Date(`${date}T${startTime}:00`);
     const endDate = new Date(`${date}T${endTime}:00`);
     
@@ -53,7 +60,6 @@ export default function AddShiftModal({ storeId, staffList, weekDays }) {
     } else {
       setIsOpen(false);
       router.refresh();
-      // Optional: Reset form
       setStaffId('');
     }
     setLoading(false);
