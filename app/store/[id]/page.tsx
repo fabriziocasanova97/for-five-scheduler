@@ -1,23 +1,36 @@
-// @ts-nocheck
-export const dynamic = 'force-dynamic';
+'use client';
 
 import { createClient } from '@supabase/supabase-js';
+import { useEffect, useState, use } from 'react'; // Added 'use' for unwrapping params
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AddShiftModal from '@/app/components/AddShiftModal';
 import ShiftCard from '@/app/components/ShiftCard';
+import LaborSummary from '@/app/components/LaborSummary'; 
+import LogoutButton from '@/app/components/LogoutButton';
+import { isBoss } from '@/app/utils/roles';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default async function StorePage(props) {
-  // Safe param handling for any Next.js version
-  const resolvedParams = await props.params;
-  const resolvedSearchParams = await props.searchParams;
+export default function StorePage({ params }: { params: Promise<{ id: string }> }) {
+  // Unwrap params using React 'use' (Next.js 15 standard)
+  const resolvedParams = use(params);
   const storeId = resolvedParams.id;
+  
+  const searchParams = useSearchParams();
+  const queryDate = searchParams.get('date');
 
-  const queryDate = resolvedSearchParams?.date;
+  // --- STATE ---
+  const [store, setStore] = useState<any>(null);
+  const [staffList, setStaffList] = useState<any[]>([]);
+  const [shifts, setShifts] = useState<any[]>([]);
+  const [amIBoss, setAmIBoss] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // --- 1. CALCULATE DATES ---
   const anchorDate = queryDate ? new Date(queryDate + 'T12:00:00') : new Date();
   const dayOfWeek = anchorDate.getDay(); 
   const diffToMonday = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek; 
@@ -43,53 +56,67 @@ export default async function StorePage(props) {
     };
   });
 
-  // --- DATABASE FETCH ---
-  const { data: store } = await supabase.from('stores').select('*').eq('id', storeId).single();
-  const { data: staffList } = await supabase.from('profiles').select('*').order('full_name');
-  
-  const { data: allShifts } = await supabase
-    .from('shifts')
-    .select(`*, profiles ( full_name, role )`) 
-    .eq('store_id', storeId);
+  // --- 2. FETCH DATA ---
+  useEffect(() => {
+    const initPage = async () => {
+      // A. Check User (Boss Status)
+      const { data: { user } } = await supabase.auth.getUser();
+      setAmIBoss(isBoss(user?.email));
 
-  // Filter shifts
+      // B. Fetch Store & Staff
+      const { data: storeData } = await supabase.from('stores').select('*').eq('id', storeId).single();
+      const { data: staffData } = await supabase.from('profiles').select('*').order('full_name');
+      
+      // C. Fetch Shifts
+      const { data: shiftData } = await supabase
+        .from('shifts')
+        .select(`*, profiles ( full_name, role )`) 
+        .eq('store_id', storeId);
+
+      setStore(storeData);
+      setStaffList(staffData || []);
+      setShifts(shiftData || []);
+      setLoading(false);
+    };
+
+    initPage();
+  }, [storeId, queryDate]); // Re-run if store or date changes
+
+  // --- 3. FILTERING ---
   const weekStartStr = weekDays[0].isoDate;
   const weekEndDate = new Date(weekDays[6].isoDate);
   weekEndDate.setDate(weekEndDate.getDate() + 1); 
   const weekEndStr = weekEndDate.toISOString().split('T')[0];
 
-  const currentWeekShifts = allShifts?.filter(s => 
+  const currentWeekShifts = shifts.filter(s => 
     s.start_time >= weekStartStr && s.start_time < weekEndStr
   );
 
-  const laborSummary = {};
-  currentWeekShifts?.forEach((shift) => {
-    const name = shift.profiles?.full_name || 'Unknown';
-    const start = new Date(shift.start_time).getTime();
-    const end = new Date(shift.end_time).getTime();
-    const hours = (end - start) / (1000 * 60 * 60);
-    laborSummary[name] = (laborSummary[name] || 0) + hours;
-  });
+  if (loading) return <div className="p-8 text-center text-gray-500">Loading schedule...</div>;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="bg-white border-b px-8 py-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <Link href="/" className="text-sm text-gray-500 hover:text-black mb-1 block">← Back to All Stores</Link>
+            <Link href="/" className="text-sm text-gray-500 hover:text-black mb-1 block">
+              ← Back to All Stores
+            </Link>
             <h1 className="text-3xl font-bold text-gray-900">{store?.name}</h1>
           </div>
           
-          {/* UPDATED MODAL USAGE HERE */}
-          <AddShiftModal 
-            storeId={storeId} 
-            staffList={staffList || []} 
-            weekDays={weekDays} 
-          />
-
+          <div className="flex gap-2 items-center">
+            <LogoutButton />
+            {/* PASSING PERMISSION TO THE MODAL */}
+            <AddShiftModal 
+              storeId={storeId} 
+              staffList={staffList} 
+              weekDays={weekDays} 
+              amIBoss={amIBoss} 
+            />
+          </div>
         </div>
 
-        {/* NAVIGATION & SUMMARY */}
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between bg-gray-100 p-2 rounded-lg max-w-md">
             <Link href={`/store/${storeId}?date=${prevDateString}`} className="px-4 py-2 bg-white text-sm font-bold rounded shadow hover:bg-gray-50 text-gray-700">← Last Week</Link>
@@ -97,27 +124,17 @@ export default async function StorePage(props) {
             <Link href={`/store/${storeId}?date=${nextDateString}`} className="px-4 py-2 bg-white text-sm font-bold rounded shadow hover:bg-gray-50 text-gray-700">Next Week →</Link>
           </div>
 
-          {Object.keys(laborSummary).length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="text-sm font-bold text-blue-800 uppercase mb-2">Weekly Staff Hours</h3>
-              <div className="flex flex-wrap gap-3">
-                {Object.entries(laborSummary).map(([name, hours]) => (
-                  <div key={name} className={`px-3 py-1 rounded border text-sm font-bold flex items-center gap-2 ${hours > 40 ? 'bg-red-100 text-red-700 border-red-300' : 'bg-white text-gray-700 border-gray-200'}`}>
-                    <span>{name}</span>
-                    <span className={`px-1.5 py-0.5 rounded text-xs ${hours > 40 ? 'bg-red-600 text-white' : 'bg-blue-100 text-blue-800'}`}>{hours.toFixed(1)}h</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* SECURE LABOR SUMMARY COMPONENT */}
+          <LaborSummary shifts={currentWeekShifts} />
+
         </div>
       </div>
 
       <div className="flex-1 p-8 overflow-x-auto">
         <div className="grid grid-cols-7 gap-4 min-w-[1000px]">
           {weekDays.map((day) => {
-            const dayShifts = currentWeekShifts?.filter(shift => shift.start_time.startsWith(day.isoDate));
-            dayShifts?.sort((a, b) => a.start_time.localeCompare(b.start_time));
+            const dayShifts = currentWeekShifts.filter(shift => shift.start_time.startsWith(day.isoDate));
+            dayShifts.sort((a: any, b: any) => a.start_time.localeCompare(b.start_time));
             const isToday = day.isoDate === new Date().toISOString().split('T')[0];
 
             return (
@@ -126,11 +143,16 @@ export default async function StorePage(props) {
                   <p className={`font-bold ${isToday ? 'text-white' : 'text-gray-800'}`}>{day.name}</p>
                   <p className={`text-xs ${isToday ? 'text-blue-100' : 'text-gray-400'}`}>{day.dateLabel}</p>
                 </div>
-
                 <div className="bg-gray-100 flex-1 border rounded-b-lg p-2 min-h-[500px] flex flex-col">
                   <div className="space-y-2 flex-1">
-                    {dayShifts?.map((shift) => (
-                      <ShiftCard key={shift.id} shift={shift} />
+                    {dayShifts.map((shift) => (
+                      <ShiftCard 
+                        key={shift.id} 
+                        shift={shift} 
+                        staffList={staffList} 
+                        weekDays={weekDays}
+                        amIBoss={amIBoss} 
+                      />
                     ))}
                   </div>
                 </div>
