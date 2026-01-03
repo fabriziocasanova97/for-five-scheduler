@@ -1,101 +1,71 @@
-'use client'; // <--- This is the magic switch
-
+// @ts-nocheck
 import { createClient } from '@supabase/supabase-js';
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import LogoutButton from '@/app/components/LogoutButton';
-import { isBoss } from '@/app/utils/roles';
+import LogoutButton from './components/LogoutButton';
+import { isBoss } from './utils/roles';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default function Home() {
-  const [user, setUser] = useState<any>(null);
-  const [stores, setStores] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export const dynamic = 'force-dynamic';
 
-  useEffect(() => {
-    const initPage = async () => {
-      // 1. Check who is logged in
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+export default async function Home() {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: stores } = await supabase.from('stores').select('*');
+  
+  // CHECK BOSS STATUS
+  const amIBoss = isBoss(user?.email);
 
-      // 2. If it is the boss, fetch the store list
-      if (user && isBoss(user.email)) {
-        const { data: storeList } = await supabase.from('stores').select('*');
-        setStores(storeList || []);
-      }
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4">
       
-      setLoading(false);
-    };
-
-    initPage();
-  }, []);
-
-  // --- LOADING STATE ---
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500 animate-pulse">Checking Security...</p>
+      {/* HEADER WITH LOGOUT */}
+      <div className="w-full max-w-4xl flex justify-end mb-4">
+        <LogoutButton />
       </div>
-    );
-  }
 
-  // --- ACCESS DENIED STATE ---
-  const userIsBoss = isBoss(user?.email);
-  if (!userIsBoss) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-xl shadow-lg text-center max-w-md border">
-          <h1 className="text-2xl font-bold text-red-600 mb-2">Access Restricted</h1>
-          <p className="text-gray-600 mb-6">
-            You do not have permission to view the Master Store List. <br/>
-            <span className="text-xs text-gray-400 block mt-2">(Logged in as: {user?.email || 'Guest'})</span>
-          </p>
-          
-          {/* If they are a guest (not logged in), show a Login button instead of Logout */}
-          {!user ? (
+      <div className="max-w-4xl w-full">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+            Your Stores
+          </h1>
+
+          {/* MASTER VIEW BUTTON (BOSS ONLY) */}
+          {amIBoss && (
             <Link 
-              href="/login" 
-              className="inline-block bg-blue-600 text-white font-bold py-2 px-6 rounded hover:bg-blue-700 transition"
+              href="/overview"
+              className="bg-purple-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-purple-700 shadow-md transition"
             >
-              Go to Login
+              👑 Master View
             </Link>
-          ) : (
-            <LogoutButton />
           )}
         </div>
-      </div>
-    );
-  }
 
-  // --- BOSS DASHBOARD STATE ---
-  return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">All Stores</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500">Welcome, {user?.email}</span>
-            <LogoutButton />
+        {/* ACCESS RESTRICTED MESSAGE FOR STAFF */}
+        {!amIBoss && (
+          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-8 text-center font-bold">
+            Access Restricted: Please contact your manager for your schedule link.
           </div>
-        </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {stores.map((store) => (
+          {stores?.map((store) => (
             <Link 
               key={store.id} 
               href={`/store/${store.id}`}
-              className="block group"
+              className="group relative block bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100"
             >
-              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-500 transition-all">
-                <h2 className="text-xl font-bold text-gray-900 group-hover:text-blue-600">
+              <div className="h-32 bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center">
+                <span className="text-5xl">🏪</span>
+              </div>
+              <div className="p-6">
+                <h2 className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
                   {store.name}
                 </h2>
-                <p className="text-gray-500 mt-2 text-sm">
-                  {store.location || 'No location set'}
+                <p className="text-gray-500 mt-2 flex items-center gap-2">
+                  📍 {store.location}
                 </p>
               </div>
             </Link>

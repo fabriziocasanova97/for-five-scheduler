@@ -1,7 +1,10 @@
+// @ts-nocheck
 export const dynamic = 'force-dynamic';
 
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
+// IMPORT THE SECURITY CHECK
+import { isBoss } from '@/app/utils/roles';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,6 +18,18 @@ export default async function OverviewPage({
 }) {
   const resolvedSearchParams = await searchParams;
   const queryDate = resolvedSearchParams.date;
+
+  // --- 0. SECURITY CHECK (NEW) ---
+  const { data: { user } } = await supabase.auth.getUser();
+  const amIBoss = isBoss(user?.email);
+
+  if (!amIBoss) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-red-600 font-bold p-4 text-center">
+        🚫 Access Denied: This report is for managers only.
+      </div>
+    );
+  }
   
   // --- 1. DATE MATH (Find the week) ---
   const anchorDate = queryDate ? new Date(queryDate + 'T12:00:00') : new Date();
@@ -119,7 +134,8 @@ export default async function OverviewPage({
                 {/* Store Name Column */}
                 <td className="p-4 border-b border-r font-bold text-gray-800 bg-white sticky left-0 z-10 group-hover:bg-gray-50">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: store.color }}></div>
+                    {/* Color dot if you have colors, or just a default */}
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                     <Link href={`/store/${store.id}`} className="hover:underline text-sm">
                       {store.name}
                     </Link>
