@@ -1,9 +1,10 @@
 // @ts-nocheck
-export const dynamic = 'force-dynamic';
+'use client';
 
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
-// IMPORT THE SECURITY CHECK
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
 import { isBoss } from '@/app/utils/roles';
 
 const supabase = createClient(
@@ -11,27 +12,16 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default async function OverviewPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ date?: string }>;
-}) {
-  const resolvedSearchParams = await searchParams;
-  const queryDate = resolvedSearchParams.date;
+function OverviewContent() {
+  const searchParams = useSearchParams();
+  const queryDate = searchParams.get('date');
 
-  // --- 0. SECURITY CHECK (NEW) ---
-  const { data: { user } } = await supabase.auth.getUser();
-  const amIBoss = isBoss(user?.email);
-
-  if (!amIBoss) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-red-600 font-bold p-4 text-center">
-        🚫 Access Denied: This report is for managers only.
-      </div>
-    );
-  }
+  const [loading, setLoading] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
+  const [stores, setStores] = useState([]);
+  const [shifts, setShifts] = useState([]);
   
-  // --- 1. DATE MATH (Find the week) ---
+  // --- DATE MATH ---
   const anchorDate = queryDate ? new Date(queryDate + 'T12:00:00') : new Date();
   const dayOfWeek = anchorDate.getDay();
   const diffToMonday = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek;
@@ -57,24 +47,54 @@ export default async function OverviewPage({
   prevWeek.setDate(currentMonday.getDate() - 7);
   const prevDateStr = prevWeek.toISOString().split('T')[0];
 
-  // --- 2. FETCH DATA ---
-  const { data: stores } = await supabase.from('stores').select('*').order('name');
-  
-  // Fetch shifts for the entire week across ALL stores
-  const weekStart = weekDays[0].isoDate;
-  const weekEnd = new Date(weekDays[6].isoDate);
-  weekEnd.setDate(weekEnd.getDate() + 1);
-  const weekEndStr = weekEnd.toISOString().split('T')[0];
+  useEffect(() => {
+    const fetchData = async () => {
+      // 1. SECURITY CHECK (Client Side)
+      const { data: { user } } = await supabase.auth.getUser();
+      const amIBoss = isBoss(user?.email);
 
-  const { data: allShifts } = await supabase
-    .from('shifts')
-    .select('*, profiles(full_name, role)')
-    .gte('start_time', weekStart)
-    .lt('start_time', weekEndStr);
+      if (!amIBoss) {
+        setAuthorized(false);
+        setLoading(false);
+        return;
+      }
+      setAuthorized(true);
+
+      // 2. FETCH STORES
+      const { data: storesData } = await supabase.from('stores').select('*').order('name');
+      setStores(storesData || []);
+
+      // 3. FETCH SHIFTS
+      const weekStart = weekDays[0].isoDate;
+      const weekEnd = new Date(weekDays[6].isoDate);
+      weekEnd.setDate(weekEnd.getDate() + 1);
+      const weekEndStr = weekEnd.toISOString().split('T')[0];
+
+      const { data: shiftsData } = await supabase
+        .from('shifts')
+        .select('*, profiles(full_name, role)')
+        .gte('start_time', weekStart)
+        .lt('start_time', weekEndStr);
+      
+      setShifts(shiftsData || []);
+      setLoading(false);
+    };
+
+    fetchData();
+  }, [queryDate]);
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading Master Schedule...</div>;
+  
+  if (!authorized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-red-600 font-bold p-4 text-center">
+        🚫 Access Denied: This report is for managers only.
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
-      
       {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -83,7 +103,6 @@ export default async function OverviewPage({
         </div>
         
         <div className="flex gap-4">
-          {/* Back Button */}
           <Link 
             href="/" 
             className="px-4 py-2 bg-white border border-gray-300 rounded hover:bg-gray-100 text-black font-medium transition"
@@ -91,7 +110,6 @@ export default async function OverviewPage({
             ← Back to Stores
           </Link>
           
-          {/* Week Selector */}
           <div className="flex bg-white border border-gray-300 rounded-lg overflow-hidden text-black shadow-sm">
             <Link 
               href={`/overview?date=${prevDateStr}`} 
@@ -112,7 +130,7 @@ export default async function OverviewPage({
         </div>
       </div>
 
-      {/* MASTER GRID CONTAINER */}
+      {/* MASTER GRID */}
       <div className="overflow-x-auto border rounded-lg shadow bg-white">
         <table className="w-full text-left border-collapse min-w-[1200px]">
           <thead>
@@ -129,45 +147,35 @@ export default async function OverviewPage({
             </tr>
           </thead>
           <tbody>
-            {stores?.map(store => (
+            {stores.map(store => (
               <tr key={store.id} className="hover:bg-gray-50 group">
-                {/* Store Name Column */}
                 <td className="p-4 border-b border-r font-bold text-gray-800 bg-white sticky left-0 z-10 group-hover:bg-gray-50">
                   <div className="flex items-center gap-2">
-                    {/* Color dot if you have colors, or just a default */}
                     <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                     <Link href={`/store/${store.id}`} className="hover:underline text-sm">
                       {store.name}
                     </Link>
                   </div>
                 </td>
-
-                {/* Days Columns */}
                 {weekDays.map(day => {
-                  const shifts = allShifts?.filter(s => 
+                  const dayShifts = shifts.filter(s => 
                     s.store_id === store.id && 
                     s.start_time.startsWith(day.isoDate)
                   );
-
-                  // Sort by start time so Openers are at the top
-                  shifts?.sort((a, b) => a.start_time.localeCompare(b.start_time));
+                  dayShifts.sort((a, b) => a.start_time.localeCompare(b.start_time));
 
                   return (
                     <td key={day.isoDate} className="p-1 border-b border-r align-top h-32 relative">
                       <div className="flex flex-col gap-1 h-full">
-                        {shifts?.length === 0 && (
+                        {dayShifts.length === 0 && (
                            <div className="flex-1 flex items-center justify-center">
                              <span className="text-gray-300 text-xs">-</span>
                            </div>
                         )}
-                        
-                        {shifts?.map(shift => {
+                        {dayShifts.map(shift => {
                           const isManager = shift.profiles?.role?.trim() === 'Manager';
-                          
-                          // Format Time: "6a - 2p"
                           const start = new Date(shift.start_time).toLocaleTimeString([], {hour: 'numeric', hour12: true}).replace(':00', '').toLowerCase();
                           const end = new Date(shift.end_time).toLocaleTimeString([], {hour: 'numeric', hour12: true}).replace(':00', '').toLowerCase();
-                          
                           return (
                             <div 
                               key={shift.id} 
@@ -179,7 +187,7 @@ export default async function OverviewPage({
                             >
                               <div className="truncate font-bold max-w-[60px]">
                                 {isManager && <span className="mr-1 text-purple-600">★</span>}
-                                {shift.profiles?.full_name.split(' ')[0]}
+                                {shift.profiles?.full_name?.split(' ')[0]}
                               </div>
                               <div className="text-[9px] opacity-75 whitespace-nowrap ml-1">
                                 {start}-{end}
@@ -197,5 +205,13 @@ export default async function OverviewPage({
         </table>
       </div>
     </div>
+  );
+}
+
+export default function OverviewPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <OverviewContent />
+    </Suspense>
   );
 }
