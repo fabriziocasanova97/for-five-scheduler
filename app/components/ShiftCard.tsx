@@ -4,7 +4,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import EditShiftModal from './EditShiftModal'; // <--- Import the modal
+import EditShiftModal from './EditShiftModal';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,12 +13,18 @@ const supabase = createClient(
 
 export default function ShiftCard({ shift, amIBoss }) {
   const router = useRouter();
-  const [isEditing, setIsEditing] = useState(false); // <--- State to control the pop-up
+  const [isEditing, setIsEditing] = useState(false);
 
   const handleDelete = async () => {
+    // 1. Confirm with the user
     if (!confirm('Are you sure you want to delete this shift?')) return;
+    
+    // 2. Delete from Database
     await supabase.from('shifts').delete().eq('id', shift.id);
-    router.refresh();
+    
+    // 3. FORCE REFRESH (The Nuclear Option)
+    // This makes sure the shift disappears instantly
+    window.location.reload(); 
   };
 
   // --- COLOR LOGIC ---
@@ -43,7 +49,7 @@ export default function ShiftCard({ shift, amIBoss }) {
         
         {/* BOSS CONTROL PANEL */}
         {amIBoss && (
-          <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-white/60 rounded px-1 backdrop-blur-sm shadow-sm">
+          <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-white/60 rounded px-1 backdrop-blur-sm shadow-sm z-10">
              
              {/* EDIT BUTTON (PENCIL) */}
              <button 
@@ -76,13 +82,16 @@ export default function ShiftCard({ shift, amIBoss }) {
         </div>
 
         {/* Time */}
-        <div className="text-xs opacity-90 font-medium">
+        <div 
+          className="text-xs opacity-90 font-medium"
+          suppressHydrationWarning={true} // Keeps the time display safe from errors
+        >
           {new Date(shift.start_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'})} - 
           {new Date(shift.end_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'})}
         </div>
       </div>
 
-      {/* RENDER MODAL HERE (Outside the card design, so it floats on top) */}
+      {/* RENDER MODAL HERE */}
       {isEditing && (
         <EditShiftModal 
           shift={shift} 

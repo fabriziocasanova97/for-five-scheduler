@@ -16,8 +16,7 @@ export default function AddShiftModal({ storeId, staffList, weekDays, amIBoss = 
   if (!amIBoss) return null;
 
   const [isOpen, setIsOpen] = useState(false);
-  const router = useRouter();
-
+  
   // Safe default: Check if weekDays exists
   const defaultDate = (weekDays && weekDays.length > 0) ? weekDays[0].isoDate : '';
 
@@ -47,7 +46,11 @@ export default function AddShiftModal({ storeId, staffList, weekDays, amIBoss = 
     
     const { error } = await supabase.from('shifts').insert({
       store_id: storeId,
-      profile_id: staffId, // <--- CHANGED FROM 'user_id' TO MATCH EDIT MODAL
+      // ---------------------------------------------------------
+      // CRITICAL FIX: The database column is 'user_id'
+      // We map the variable 'staffId' to the column 'user_id'
+      // ---------------------------------------------------------
+      user_id: staffId, 
       start_time: startDate.toISOString(),
       end_time: endDate.toISOString()
     });
@@ -56,7 +59,8 @@ export default function AddShiftModal({ storeId, staffList, weekDays, amIBoss = 
       alert(error.message);
     } else {
       setIsOpen(false);
-      router.refresh(); // <--- Forces the "Newspaper" to reprint immediately
+      // FORCE REFRESH: This ensures the shift appears instantly
+      window.location.reload(); 
       setStaffId('');
     }
     setLoading(false);

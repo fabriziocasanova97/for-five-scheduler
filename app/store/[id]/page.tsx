@@ -2,7 +2,7 @@
 'use client';
 
 import { createClient } from '@supabase/supabase-js';
-import { useEffect, useState, use } from 'react'; // Added 'use' for unwrapping params
+import { useEffect, useState, use } from 'react'; 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AddShiftModal from '@/app/components/AddShiftModal';
@@ -17,7 +17,6 @@ const supabase = createClient(
 );
 
 export default function StorePage({ params }: { params: Promise<{ id: string }> }) {
-  // Unwrap params using React 'use' (Next.js 15 standard)
   const resolvedParams = use(params);
   const storeId = resolvedParams.id;
   
@@ -81,7 +80,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
     };
 
     initPage();
-  }, [storeId, queryDate]); // Re-run if store or date changes
+  }, [storeId, queryDate]);
 
   // --- 3. FILTERING ---
   const weekStartStr = weekDays[0].isoDate;
@@ -108,7 +107,6 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
           
           <div className="flex gap-2 items-center">
             <LogoutButton />
-            {/* PASSING PERMISSION TO THE MODAL */}
             <AddShiftModal 
               storeId={storeId} 
               staffList={staffList} 
@@ -125,12 +123,10 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
             <Link href={`/store/${storeId}?date=${nextDateString}`} className="px-4 py-2 bg-white text-sm font-bold rounded shadow hover:bg-gray-50 text-gray-700">Next Week →</Link>
           </div>
 
-          {/* SECURE LABOR SUMMARY COMPONENT */}
           <LaborSummary 
-  shifts={currentWeekShifts} 
-  amIBoss={amIBoss}  // <--- ADD THIS LINE
-/>
-
+            shifts={currentWeekShifts} 
+            amIBoss={amIBoss} 
+          />
         </div>
       </div>
 
@@ -139,7 +135,13 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
           {weekDays.map((day) => {
             const dayShifts = currentWeekShifts.filter(shift => shift.start_time.startsWith(day.isoDate));
             dayShifts.sort((a: any, b: any) => a.start_time.localeCompare(b.start_time));
-            const isToday = day.isoDate === new Date().toISOString().split('T')[0];
+            
+            // --- TIMEZONE FIX ---
+            // Calculate "Today" based on local time, not UTC
+            const now = new Date();
+            const localTodayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+            const isToday = day.isoDate === localTodayStr;
+            // --------------------
 
             return (
               <div key={day.isoDate} className="flex flex-col h-full">
