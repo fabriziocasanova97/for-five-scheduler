@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import LogoutButton from './components/LogoutButton';
+import LoginScreen from './components/LoginScreen'; // <--- Import the new Login Screen
 import { isBoss } from './utils/roles';
 
 // --- CONFIGURATION ---
@@ -13,8 +14,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// A pleasing palette of colors that work well together.
-// It will cycle through these if you have many stores.
 const CARD_COLORS = [
   'border-blue-500',    // Store 1
   'border-emerald-500', // Store 2
@@ -34,16 +33,19 @@ export default function Home() {
 
   useEffect(() => {
     const fetchData = async () => {
+      // 1. Get User
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       
+      // 2. Only fetch data if a user is actually logged in
       if (user?.email) {
         setAmIBoss(isBoss(user.email));
-      }
 
-      // Get Stores ordered by name so the colors stay consistent
-      const { data: storesData } = await supabase.from('stores').select('*').order('name');
-      setStores(storesData || []);
+        // Get Stores ordered by name
+        const { data: storesData } = await supabase.from('stores').select('*').order('name');
+        setStores(storesData || []);
+      }
+      
       setLoading(false);
     };
 
@@ -54,6 +56,13 @@ export default function Home() {
     return <div className="min-h-screen flex items-center justify-center text-gray-500">Loading...</div>;
   }
 
+  // --- THE GATEKEEPER ---
+  // If we are done loading and there is NO user, show the Login Screen.
+  if (!user) {
+    return <LoginScreen />;
+  }
+
+  // If there IS a user, show the Dashboard.
   return (
     <div className="min-h-screen bg-white flex flex-col items-center py-12 px-4">
       
@@ -80,17 +89,13 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {/* Note: added 'index' to the map function below */}
           {stores.map((store, index) => {
-            // Calculate which color to use based on the store's position in the list
-            // The '%' (modulo) operator makes it loop back to the start if you run out of colors.
             const colorClass = CARD_COLORS[index % CARD_COLORS.length];
             
             return (
               <Link 
                 key={store.id} 
                 href={`/store/${store.id}`}
-                // Added 'border-2' for boldness and the dynamic 'colorClass'
                 className={`group block p-6 bg-white border-2 rounded-xl hover:shadow-md transition-all duration-200 ${colorClass}`}
               >
                 <h2 className="text-xl font-bold text-gray-900 group-hover:opacity-80">
