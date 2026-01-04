@@ -54,7 +54,8 @@ export default function LoginScreen() {
             <input 
               type="email" 
               required
-              className="w-full border p-3 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition"
+              // FIX: Added 'text-gray-900' to force black text
+              className="w-full border p-3 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition text-gray-900"
               placeholder="name@example.com"
               value={email}
               onChange={e => setEmail(e.target.value)}
@@ -66,7 +67,8 @@ export default function LoginScreen() {
             <input 
               type="password" 
               required
-              className="w-full border p-3 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition"
+              // FIX: Added 'text-gray-900' to force black text
+              className="w-full border p-3 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition text-gray-900"
               placeholder="••••••••"
               value={password}
               onChange={e => setPassword(e.target.value)}
