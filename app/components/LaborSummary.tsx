@@ -31,14 +31,26 @@ export default function LaborSummary({ shifts, amIBoss = false }) {
       </h3>
       
       <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-2">
-        {report.map(([name, hours]: any) => (
-          <div key={name} className="flex justify-between items-center text-sm">
-            <span className="text-gray-700 font-medium">{name}</span>
-            <span className="text-gray-900 font-bold bg-gray-100 px-2 py-0.5 rounded text-xs">
-              {hours.toFixed(1)} hrs
-            </span>
-          </div>
-        ))}
+        {report.map(([name, hours]: any) => {
+          // --- OVERTIME CHECK ---
+          const isOvertime = hours > 40;
+          
+          return (
+            <div key={name} className="flex justify-between items-center text-sm">
+              <span className={`font-medium ${isOvertime ? 'text-red-700 font-bold' : 'text-gray-700'}`}>
+                {name} {isOvertime && '⚠️'}
+              </span>
+              
+              <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                isOvertime 
+                  ? 'bg-red-100 text-red-700 border border-red-200' // Overtime Style
+                  : 'bg-gray-100 text-gray-900'                     // Normal Style
+              }`}>
+                {hours.toFixed(1)} hrs
+              </span>
+            </div>
+          );
+        })}
 
         {report.length === 0 && (
           <p className="text-gray-400 text-xs italic">No shifts scheduled yet.</p>

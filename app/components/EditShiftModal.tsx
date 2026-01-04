@@ -1,6 +1,7 @@
+// @ts-nocheck
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 
@@ -9,163 +10,153 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default function EditShiftModal({ shift, staffList, weekDays }: any) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function EditShiftModal({ shift, onClose }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [staffList, setStaffList] = useState([]);
 
-  // Form State
-  const [staffId, setStaffId] = useState(shift.user_id);
-  const [date, setDate] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+  // 1. PRE-FILL LOGIC
+  const startObj = new Date(shift.start_time);
+  const endObj = new Date(shift.end_time);
 
-  const handleOpen = () => {
-    // 1. EXTRACT DATA FROM CURRENT SHIFT
-    const startObj = new Date(shift.start_time);
-    const endObj = new Date(shift.end_time);
-
-    // Get YYYY-MM-DD
-    const isoDate = startObj.toISOString().split('T')[0];
-    
-    // Get HH:MM (Local Time)
-    const startStr = startObj.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' });
-    const endStr = endObj.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' });
-
-    setDate(isoDate);
-    setStartTime(startStr);
-    setEndTime(endStr);
-    setStaffId(shift.user_id); 
-    setIsOpen(true);
+  // Helper to format "HH:MM" (Local Time)
+  const toTimeStr = (dateObj) => {
+    return dateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const handleUpdate = async (e: any) => {
+  const [formData, setFormData] = useState({
+    profile_id: shift.profile_id, 
+    date: startObj.toISOString().split('T')[0], // YYYY-MM-DD
+    start_time: toTimeStr(startObj),
+    end_time: toTimeStr(endObj)
+  });
+
+  // 2. GET STAFF LIST
+  useEffect(() => {
+    const fetchStaff = async () => {
+      const { data } = await supabase.from('profiles').select('*').order('full_name');
+      setStaffList(data || []);
+    };
+    fetchStaff();
+  }, []);
+
+  // 3. SAVE CHANGES (With Timezone Fix)
+  const handleUpdate = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    // 2. CONVERT BACK TO UTC
-    const startDate = new Date(`${date}T${startTime}:00`);
-    const endDate = new Date(`${date}T${endTime}:00`);
-    
+    // Create Date objects from your Local Time inputs
+    // "new Date('2023-10-25T09:00:00')" creates a 9am Local Time object
+    const startDate = new Date(`${formData.date}T${formData.start_time}:00`);
+    const endDate = new Date(`${formData.date}T${formData.end_time}:00`);
+
+    // Convert them to UTC strings for the database
+    // This turns "9:00 AM EST" into "14:00 PM UTC" so the database understands
     const startIso = startDate.toISOString();
     const endIso = endDate.toISOString();
 
     const { error } = await supabase
       .from('shifts')
       .update({
-        user_id: staffId,
+        profile_id: formData.profile_id,
         start_time: startIso,
         end_time: endIso
       })
       .eq('id', shift.id);
 
+    setLoading(false);
+
     if (error) {
       alert('Error updating: ' + error.message);
     } else {
-      setIsOpen(false);
       router.refresh();
+      onClose();
     }
-    setLoading(false);
   };
 
   return (
-    <>
-      <button 
-        onClick={handleOpen}
-        className="text-gray-400 hover:text-blue-600 transition-colors p-1"
-        title="Edit Shift"
+    <div 
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white p-6 rounded-lg w-full max-w-md shadow-2xl"
+        onClick={e => e.stopPropagation()}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-          <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-        </svg>
-      </button>
-
-      {isOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 cursor-default" onClick={(e) => e.stopPropagation()}>
-          <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4 text-gray-900">Edit Shift</h2>
-            
-            <form onSubmit={handleUpdate} className="flex flex-col gap-4">
-              
-              {/* STAFF */}
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Staff</label>
-                <select 
-                  className="w-full border p-3 rounded-lg bg-gray-50 font-medium text-gray-900"
-                  value={staffId}
-                  onChange={(e) => setStaffId(e.target.value)}
-                  required
-                >
-                  {staffList.map((person: any) => (
-                    <option key={person.id} value={person.id}>
-                      {person.full_name} ({person.role})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* DATE */}
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Date</label>
-                <select 
-                  className="w-full border p-3 rounded-lg bg-gray-50 font-medium text-gray-900"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  required
-                >
-                  {weekDays.map((day: any) => (
-                    <option key={day.isoDate} value={day.isoDate}>
-                      {day.name}, {day.dateLabel}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* TIMES */}
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Start</label>
-                  <input 
-                    type="time" 
-                    className="w-full border p-3 rounded-lg bg-gray-50 text-gray-900"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    required 
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">End</label>
-                  <input 
-                    type="time" 
-                    className="w-full border p-3 rounded-lg bg-gray-50 text-gray-900"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    required 
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-4">
-                <button 
-                  type="button" 
-                  onClick={() => setIsOpen(false)}
-                  className="flex-1 py-3 text-gray-600 font-bold hover:bg-gray-100 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={loading}
-                  className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-lg"
-                >
-                  {loading ? 'Saving...' : 'Update Shift'}
-                </button>
-              </div>
-
-            </form>
+        <h2 className="text-xl font-bold mb-4 text-gray-900">Edit Shift ✏️</h2>
+        
+        <form onSubmit={handleUpdate} className="flex flex-col gap-4">
+          
+          {/* STAFF */}
+          <div>
+            <label className="block text-sm font-bold text-gray-700">Staff Member</label>
+            <select 
+              className="w-full border p-2 rounded text-gray-900 bg-white"
+              required
+              value={formData.profile_id}
+              onChange={e => setFormData({...formData, profile_id: e.target.value})}
+            >
+              {staffList.map(s => (
+                <option key={s.id} value={s.id}>{s.full_name}</option>
+              ))}
+            </select>
           </div>
-        </div>
-      )}
-    </>
+
+          {/* DATE */}
+          <div>
+            <label className="block text-sm font-bold text-gray-700">Date</label>
+            <input 
+              type="date" 
+              className="w-full border p-2 rounded text-gray-900"
+              required
+              value={formData.date}
+              onChange={e => setFormData({...formData, date: e.target.value})}
+            />
+          </div>
+
+          {/* TIME */}
+          <div className="flex gap-4">
+            <div className="w-1/2">
+              <label className="block text-sm font-bold text-gray-700">Start Time</label>
+              <input 
+                type="time" 
+                className="w-full border p-2 rounded text-gray-900"
+                required
+                value={formData.start_time}
+                onChange={e => setFormData({...formData, start_time: e.target.value})}
+              />
+            </div>
+            <div className="w-1/2">
+              <label className="block text-sm font-bold text-gray-700">End Time</label>
+              <input 
+                type="time" 
+                className="w-full border p-2 rounded text-gray-900"
+                required
+                value={formData.end_time}
+                onChange={e => setFormData({...formData, end_time: e.target.value})}
+              />
+            </div>
+          </div>
+
+          {/* BUTTONS */}
+          <div className="flex justify-end gap-2 mt-4">
+            <button 
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
