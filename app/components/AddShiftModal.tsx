@@ -10,13 +10,10 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// Added 'amIBoss' to the list of inputs below
 export default function AddShiftModal({ storeId, staffList, weekDays, amIBoss = false }) {
   
   // --- SECURITY CHECK ---
-  // If the user is NOT a boss, hide this entire component immediately.
   if (!amIBoss) return null;
-  // ----------------------
 
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
@@ -50,7 +47,7 @@ export default function AddShiftModal({ storeId, staffList, weekDays, amIBoss = 
     
     const { error } = await supabase.from('shifts').insert({
       store_id: storeId,
-      user_id: staffId, 
+      profile_id: staffId, // <--- CHANGED FROM 'user_id' TO MATCH EDIT MODAL
       start_time: startDate.toISOString(),
       end_time: endDate.toISOString()
     });
@@ -59,7 +56,7 @@ export default function AddShiftModal({ storeId, staffList, weekDays, amIBoss = 
       alert(error.message);
     } else {
       setIsOpen(false);
-      router.refresh();
+      router.refresh(); // <--- Forces the "Newspaper" to reprint immediately
       setStaffId('');
     }
     setLoading(false);
@@ -75,8 +72,14 @@ export default function AddShiftModal({ storeId, staffList, weekDays, amIBoss = 
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setIsOpen(false)}
+        >
+          <div 
+            className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md"
+            onClick={e => e.stopPropagation()}
+          >
             <h2 className="text-xl font-bold mb-4 text-gray-900">Add New Shift</h2>
             
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
