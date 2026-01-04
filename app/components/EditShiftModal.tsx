@@ -25,7 +25,8 @@ export default function EditShiftModal({ shift, onClose }) {
   };
 
   const [formData, setFormData] = useState({
-    profile_id: shift.profile_id, 
+    // FIX: Use user_id (matching your database), fall back to profile_id if needed
+    user_id: shift.user_id || shift.profile_id, 
     date: startObj.toISOString().split('T')[0], // YYYY-MM-DD
     start_time: toTimeStr(startObj),
     end_time: toTimeStr(endObj)
@@ -46,19 +47,17 @@ export default function EditShiftModal({ shift, onClose }) {
     setLoading(true);
 
     // Create Date objects from your Local Time inputs
-    // "new Date('2023-10-25T09:00:00')" creates a 9am Local Time object
     const startDate = new Date(`${formData.date}T${formData.start_time}:00`);
     const endDate = new Date(`${formData.date}T${formData.end_time}:00`);
 
     // Convert them to UTC strings for the database
-    // This turns "9:00 AM EST" into "14:00 PM UTC" so the database understands
     const startIso = startDate.toISOString();
     const endIso = endDate.toISOString();
 
     const { error } = await supabase
       .from('shifts')
       .update({
-        profile_id: formData.profile_id,
+        user_id: formData.user_id, // <--- FIX: Correct column name
         start_time: startIso,
         end_time: endIso
       })
@@ -69,8 +68,8 @@ export default function EditShiftModal({ shift, onClose }) {
     if (error) {
       alert('Error updating: ' + error.message);
     } else {
-      router.refresh();
-      onClose();
+      // FIX: Force a hard reload so the change appears instantly
+      window.location.reload();
     }
   };
 
@@ -93,8 +92,8 @@ export default function EditShiftModal({ shift, onClose }) {
             <select 
               className="w-full border p-2 rounded text-gray-900 bg-white"
               required
-              value={formData.profile_id}
-              onChange={e => setFormData({...formData, profile_id: e.target.value})}
+              value={formData.user_id} // <--- FIX: use user_id
+              onChange={e => setFormData({...formData, user_id: e.target.value})}
             >
               {staffList.map(s => (
                 <option key={s.id} value={s.id}>{s.full_name}</option>

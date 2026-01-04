@@ -10,67 +10,73 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default function AddShiftModal({ storeId, staffList, weekDays, amIBoss = false }) {
-  
-  // --- SECURITY CHECK ---
-  if (!amIBoss) return null;
-
+export default function AddShiftModal({ storeId, staffList, weekDays, amIBoss }) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  
-  // Safe default: Check if weekDays exists
-  const defaultDate = (weekDays && weekDays.length > 0) ? weekDays[0].isoDate : '';
-
-  const [staffId, setStaffId] = useState('');
-  const [date, setDate] = useState(defaultDate);
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('17:00');
   const [loading, setLoading] = useState(false);
 
-  // Update date if week changes
+  // Default to the first staff member if available
+  const [formData, setFormData] = useState({
+    user_id: '',
+    date: weekDays[0].isoDate, // Default to Monday
+    start_time: '09:00',
+    end_time: '17:00'
+  });
+
   const handleOpen = () => {
+    // Reset form when opening
+    setFormData({
+      user_id: staffList.length > 0 ? staffList[0].id : '',
+      date: weekDays[0].isoDate,
+      start_time: '09:00',
+      end_time: '17:00'
+    });
     setIsOpen(true);
-    if (!date && weekDays && weekDays.length > 0) {
-        setDate(weekDays[0].isoDate);
-    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!staffId || !date) return;
-    
     setLoading(true);
 
-    // Convert Local Time to UTC
-    const startDate = new Date(`${date}T${startTime}:00`);
-    const endDate = new Date(`${date}T${endTime}:00`);
-    
-    const { error } = await supabase.from('shifts').insert({
-      store_id: storeId,
-      // ---------------------------------------------------------
-      // CRITICAL FIX: The database column is 'user_id'
-      // We map the variable 'staffId' to the column 'user_id'
-      // ---------------------------------------------------------
-      user_id: staffId, 
-      start_time: startDate.toISOString(),
-      end_time: endDate.toISOString()
-    });
+    try {
+      // 1. Validate Inputs
+      if (!formData.user_id) throw new Error("Please select a staff member");
 
-    if (error) {
-      alert(error.message);
-    } else {
+      // 2. Create ISO Date Strings (combining Date + Time)
+      const startDate = new Date(`${formData.date}T${formData.start_time}:00`);
+      const endDate = new Date(`${formData.date}T${formData.end_time}:00`);
+
+      // 3. Send to Supabase
+      const { error } = await supabase.from('shifts').insert([
+        {
+          store_id: storeId,
+          user_id: formData.user_id, // <--- IMPORTANT: Using user_id
+          start_time: startDate.toISOString(),
+          end_time: endDate.toISOString()
+        }
+      ]);
+
+      if (error) throw error;
+
+      // 4. Success
       setIsOpen(false);
-      // FORCE REFRESH: This ensures the shift appears instantly
-      window.location.reload(); 
-      setStaffId('');
+      window.location.reload(); // Force refresh to show new shift
+
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
+
+  // If not boss, don't show the button
+  if (!amIBoss) return null;
 
   return (
     <>
       <button 
         onClick={handleOpen}
-        className="bg-black text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-800 transition shadow-md"
+        className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 shadow-sm transition whitespace-nowrap text-sm"
       >
         + Add Shift
       </button>
@@ -81,66 +87,86 @@ export default function AddShiftModal({ storeId, staffList, weekDays, amIBoss = 
           onClick={() => setIsOpen(false)}
         >
           <div 
-            className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md"
+            className="bg-white p-6 rounded-lg w-full max-w-md shadow-xl"
             onClick={e => e.stopPropagation()}
           >
             <h2 className="text-xl font-bold mb-4 text-gray-900">Add New Shift</h2>
             
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              
-              {/* STAFF SELECTOR */}
+              {/* STAFF SELECT */}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Staff Member</label>
+                <label className="block text-sm font-bold text-gray-700">Staff Member</label>
                 <select 
-                  className="w-full border p-3 rounded-lg bg-gray-50 font-medium text-gray-900" 
-                  value={staffId}
-                  onChange={(e) => setStaffId(e.target.value)}
+                  className="w-full border p-2 rounded bg-white text-gray-900"
+                  value={formData.user_id}
+                  onChange={e => setFormData({...formData, user_id: e.target.value})}
                   required
                 >
-                  <option value="">-- Select Staff --</option>
-                  {staffList.map(person => (
-                    <option key={person.id} value={person.id}>
-                      {person.full_name} ({person.role})
+                  {staffList.map(staff => (
+                    <option key={staff.id} value={staff.id}>
+                      {staff.full_name}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* DATE SELECTOR */}
+              {/* DATE SELECT */}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Date</label>
+                <label className="block text-sm font-bold text-gray-700">Day</label>
                 <select 
-                  className="w-full border p-3 rounded-lg bg-gray-50 font-medium text-gray-900"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  required
+                  className="w-full border p-2 rounded bg-white text-gray-900"
+                  value={formData.date}
+                  onChange={e => setFormData({...formData, date: e.target.value})}
                 >
                   {weekDays.map(day => (
                     <option key={day.isoDate} value={day.isoDate}>
-                      {day.name}, {day.dateLabel}
+                      {day.name} ({day.dateLabel})
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* TIME SELECTORS */}
+              {/* TIME INPUTS */}
               <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Start Time</label>
-                  <input type="time" className="w-full border p-3 rounded-lg bg-gray-50 text-gray-900" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
+                <div className="w-1/2">
+                  <label className="block text-sm font-bold text-gray-700">Start</label>
+                  <input 
+                    type="time" 
+                    className="w-full border p-2 rounded text-gray-900"
+                    value={formData.start_time}
+                    onChange={e => setFormData({...formData, start_time: e.target.value})}
+                    required
+                  />
                 </div>
-                <div className="flex-1">
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">End Time</label>
-                  <input type="time" className="w-full border p-3 rounded-lg bg-gray-50 text-gray-900" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
+                <div className="w-1/2">
+                  <label className="block text-sm font-bold text-gray-700">End</label>
+                  <input 
+                    type="time" 
+                    className="w-full border p-2 rounded text-gray-900"
+                    value={formData.end_time}
+                    onChange={e => setFormData({...formData, end_time: e.target.value})}
+                    required
+                  />
                 </div>
               </div>
 
-              {/* BUTTONS */}
-              <div className="flex gap-3 mt-4">
-                <button type="button" onClick={() => setIsOpen(false)} className="flex-1 py-3 text-gray-600 font-bold hover:bg-gray-100 rounded-lg">Cancel</button>
-                <button type="submit" disabled={loading} className="flex-1 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-lg">{loading ? 'Saving...' : 'Save Shift'}</button>
+              {/* ACTIONS */}
+              <div className="flex justify-end gap-2 mt-4">
+                <button 
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="px-4 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {loading ? 'Saving...' : 'Save Shift'}
+                </button>
               </div>
-
             </form>
           </div>
         </div>
