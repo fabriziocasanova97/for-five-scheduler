@@ -49,7 +49,8 @@ export default function ShiftCard({ shift, amIBoss }) {
         
         {/* BOSS CONTROL PANEL */}
         {amIBoss && (
-          <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-white/60 rounded px-1 backdrop-blur-sm shadow-sm z-10">
+          // FIX: opacity-100 (visible on mobile) -> md:opacity-0 (hidden on desktop) -> md:group-hover:opacity-100 (visible on hover)
+          <div className="absolute top-1 right-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-1 bg-white/60 rounded px-1 backdrop-blur-sm shadow-sm z-10">
              
              {/* EDIT BUTTON (PENCIL) */}
              <button 
