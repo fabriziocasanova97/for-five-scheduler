@@ -150,7 +150,8 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
             {mounted && amIBoss && (
               <Link 
                 href="/overview"
-                className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-lg text-sm font-semibold shadow-sm hover:bg-gray-800"
+                // UPDATED: Editorial Style (Black bg, white text, uppercase, bold tracking)
+                className="flex items-center gap-2 bg-black text-white px-5 py-2.5 text-sm font-bold uppercase tracking-wider shadow-sm hover:bg-gray-800 transition-all"
               >
                 Master View
               </Link>
@@ -158,7 +159,8 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
 
             <button
               onMouseDown={handleLogout} 
-              className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider shadow-sm hover:bg-gray-100 hover:text-black hover:border-black transition-all cursor-pointer"
+              // UPDATED: Removed rounded-lg to match sharper theme
+              className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-5 py-2.5 text-sm font-bold uppercase tracking-wider shadow-sm hover:bg-gray-100 hover:text-black hover:border-black transition-all cursor-pointer"
             >
               Sign Out
             </button>
