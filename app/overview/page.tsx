@@ -7,7 +7,7 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
 import { isBoss } from '@/app/utils/roles';
 
-// --- ROW DOT COLORS (Just for the Store Name column) ---
+// --- ROW DOT COLORS ---
 const ROW_COLORS = [
   'bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 
   'bg-orange-500', 'bg-cyan-500', 'bg-rose-500', 'bg-indigo-500'
@@ -41,7 +41,7 @@ function OverviewContent() {
     return {
       isoDate: d.toISOString().split('T')[0],
       label: d.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' }),
-      shortName: d.toLocaleDateString('en-US', { weekday: 'short' })
+      shortName: d.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()
     };
   });
 
@@ -86,78 +86,67 @@ function OverviewContent() {
     fetchData();
   }, [queryDate]);
 
-  // --- HELPER: GET COLOR BASED ON TIME ---
+  // --- COLOR LOGIC ---
   const getShiftStyle = (shift) => {
-    const isManager = ['Manager', 'Operations'].includes(shift.profiles?.role?.trim());
-    
-    // 1. MANAGER (Purple + Star) - Overrides everything
+    const role = shift.profiles?.role?.trim();
+    const isManager = role === 'Manager' || role === 'Operations';
+
+    // 1. MANAGER / OPS -> PURPLE (Overrides time logic)
     if (isManager) {
-      return 'bg-purple-100 border-purple-300 text-purple-900 font-bold';
+      return 'bg-purple-100 border-purple-300 text-purple-900';
     }
 
-    // 2. TIME BASED LOGIC
+    // 2. TIME BASED LOGIC (For everyone else)
     const dateObj = new Date(shift.start_time);
-    const hour = dateObj.getHours(); // 0 to 23
-    const minutes = dateObj.getMinutes();
-    const decimalTime = hour + (minutes / 60);
+    const hour = dateObj.getHours(); 
 
-    // Opening (Before 7:00 AM) -> Green
-    if (decimalTime < 7) {
-      return 'bg-emerald-50 border-emerald-200 text-emerald-900';
-    }
-    // Mid (7:00 AM to 9:59 AM) -> Blue
-    else if (decimalTime < 10) {
-      return 'bg-blue-50 border-blue-200 text-blue-900';
-    }
-    // Closing (10:00 AM or later) -> Orange
-    else {
-      return 'bg-orange-50 border-orange-200 text-orange-900';
-    }
+    // Openers (< 7am) -> Mint
+    if (hour < 7) return 'bg-emerald-100 border-emerald-300 text-emerald-900'; 
+    // Morning (< 10am) -> Blue
+    if (hour < 10) return 'bg-blue-100 border-blue-300 text-blue-900'; 
+    // Closers (>= 10am) -> Orange
+    return 'bg-orange-100 border-orange-300 text-orange-900'; 
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading Master Schedule...</div>;
-  if (!authorized) return <div className="p-4 text-center text-red-600 font-bold">🚫 Access Denied</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-white text-sm font-bold uppercase tracking-widest">Loading...</div>;
+  if (!authorized) return <div className="p-12 text-center text-red-600 font-bold uppercase tracking-widest">🚫 Access Denied</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* HEADER - CLEAN & MINIMAL */}
-      <div className="bg-white border-b px-4 py-4 sticky left-0 right-0 top-0 z-30">
-        <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-end">
+    <div className="min-h-screen bg-white flex flex-col font-sans text-gray-900">
+      
+      {/* HEADER SECTION */}
+      <div className="bg-white border-b border-gray-200 px-6 py-6 sticky left-0 right-0 top-0 z-40 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-end max-w-[1800px] mx-auto">
           
           {/* Top Left: Back Link + Title */}
           <div className="flex flex-col gap-1">
-            <Link href="/" className="text-xs font-bold text-gray-500 hover:text-black mb-1 inline-flex items-center gap-1 transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg>
-              Back to All Stores
+            <Link href="/" className="text-xs font-bold text-gray-400 hover:text-black uppercase tracking-widest mb-2 transition-colors">
+              ← Back to Locations
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900 leading-tight">Master Schedule</h1>
-            <p className="text-sm text-gray-500">Overview across all locations</p>
+            <h1 className="text-3xl font-extrabold text-black uppercase tracking-widest">Master View</h1>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">All Locations Overview</p>
           </div>
           
-          {/* Bottom Right: Week Controls (Minimal Arrows) */}
-          <div className="flex items-center gap-4 w-full md:w-auto mt-2 md:mt-0">
+          {/* Week Controls */}
+          <div className="flex items-center gap-6">
             <Link 
               href={`/overview?date=${prevDateStr}`} 
-              className="p-2 rounded-full hover:bg-gray-100 text-gray-800 transition-colors"
-              aria-label="Previous Week"
+              className="p-2 group"
             >
-              {/* Bold Chevron Left */}
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-gray-400 group-hover:text-black transition-colors">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
               </svg>
             </Link>
 
-            <span className="font-bold text-sm text-gray-900 whitespace-nowrap">
+            <span className="font-extrabold text-sm uppercase tracking-widest text-black whitespace-nowrap border-b-2 border-transparent">
               Week of {weekDays[0].isoDate.slice(5)}
             </span>
 
             <Link 
               href={`/overview?date=${nextDateStr}`} 
-              className="p-2 rounded-full hover:bg-gray-100 text-gray-800 transition-colors"
-              aria-label="Next Week"
+              className="p-2 group"
             >
-              {/* Bold Chevron Right */}
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-gray-400 group-hover:text-black transition-colors">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
               </svg>
             </Link>
@@ -167,18 +156,30 @@ function OverviewContent() {
       </div>
 
       {/* MASTER GRID */}
-      <div className="flex-1 overflow-x-auto p-4">
-        <div className="bg-white border rounded-lg shadow min-w-[1000px]">
+      <div className="flex-1 overflow-x-auto bg-white">
+        <div className="min-w-[1200px]"> 
           <table className="w-full text-left border-collapse">
             <thead>
               <tr>
-                <th className="p-4 border-b border-r bg-gray-100 sticky left-0 z-20 w-48 text-sm font-bold text-gray-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Store Location</th>
-                {weekDays.map(day => (
-                  <th key={day.isoDate} className="p-2 border-b border-r bg-gray-50 text-center min-w-[130px]">
-                    <div className="text-xs font-bold text-gray-500 uppercase">{day.shortName}</div>
-                    <div className="text-xs text-gray-400">{day.isoDate.slice(5)}</div>
-                  </th>
-                ))}
+                {/* Sticky Store Column Header */}
+                <th className="p-4 border-b border-r border-gray-200 bg-white sticky left-0 z-30 w-56 text-xs font-extrabold text-black uppercase tracking-widest shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)]">
+                  Store Location
+                </th>
+                
+                {/* Days Headers */}
+                {weekDays.map((day, i) => {
+                   const isToday = day.isoDate === new Date().toISOString().split('T')[0];
+                   return (
+                    <th key={day.isoDate} className={`p-3 border-b border-r border-gray-200 text-center min-w-[140px] ${isToday ? 'bg-blue-600 text-white' : 'bg-black text-white'}`}>
+                      <div className={`text-xs font-extrabold tracking-widest uppercase mb-1 ${isToday ? 'text-blue-100' : 'text-gray-400'}`}>
+                        {day.shortName}
+                      </div>
+                      <div className="text-sm font-bold">
+                        {day.isoDate.slice(5)}
+                      </div>
+                    </th>
+                   );
+                })}
               </tr>
             </thead>
             <tbody>
@@ -186,47 +187,57 @@ function OverviewContent() {
                 const rowDotColor = ROW_COLORS[index % ROW_COLORS.length];
 
                 return (
-                  <tr key={store.id} className="hover:bg-gray-50 group">
-                    {/* Sticky Store Name */}
-                    <td className="p-4 border-b border-r font-bold text-gray-800 bg-white sticky left-0 z-20 group-hover:bg-gray-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full ${rowDotColor}`}></div>
-                        <Link href={`/store/${store.id}`} className="hover:underline text-sm truncate block max-w-[140px]">
+                  <tr key={store.id} className="group transition-colors hover:bg-gray-50">
+                    {/* Sticky Store Name Cell */}
+                    <td className="p-4 border-b border-r border-gray-200 bg-white sticky left-0 z-20 group-hover:bg-gray-50 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)] transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2.5 h-2.5 rounded-full ${rowDotColor} flex-shrink-0`}></div>
+                        <Link href={`/store/${store.id}`} className="font-bold text-sm text-gray-900 uppercase tracking-wide hover:text-black hover:underline truncate">
                           {store.name}
                         </Link>
                       </div>
                     </td>
 
-                    {/* Shifts */}
+                    {/* Shifts Cells */}
                     {weekDays.map(day => {
                       const dayShifts = shifts.filter(s => s.store_id === store.id && s.start_time.startsWith(day.isoDate));
                       dayShifts.sort((a, b) => a.start_time.localeCompare(b.start_time));
+                      const isToday = day.isoDate === new Date().toISOString().split('T')[0];
 
                       return (
-                        <td key={day.isoDate} className="p-1 border-b border-r align-top h-24 min-h-[100px]">
-                          <div className="flex flex-col gap-1 h-full">
-                            {dayShifts.length === 0 && <div className="flex-1 flex items-center justify-center"><span className="text-gray-200 text-lg">·</span></div>}
-                            
-                            {dayShifts.map(shift => {
-                              const isManager = ['Manager', 'Operations'].includes(shift.profiles?.role?.trim());
-                              const start = new Date(shift.start_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit', hour12: true}).toLowerCase();
-                              const end = new Date(shift.end_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit', hour12: true}).toLowerCase();
-                              
-                              const cardStyle = getShiftStyle(shift);
+                        <td key={day.isoDate} className={`p-2 border-b border-r border-gray-200 align-top h-32 min-h-[120px] transition-colors ${isToday ? 'bg-blue-50/30' : ''}`}>
+                          <div className="flex flex-col gap-2 h-full">
+                            {dayShifts.length === 0 ? (
+                               <div className="flex-1 flex items-center justify-center">
+                                 <span className="text-gray-200 text-xl font-light">·</span>
+                               </div>
+                            ) : (
+                              dayShifts.map(shift => {
+                                const role = shift.profiles?.role?.trim();
+                                const isManager = role === 'Manager' || role === 'Operations';
+                                const start = new Date(shift.start_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
+                                const end = new Date(shift.end_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
+                                
+                                const cardStyle = getShiftStyle(shift);
 
-                              return (
-                                <div 
-                                  key={shift.id} 
-                                  className={`text-[10px] p-1.5 rounded border mb-1 flex flex-col ${cardStyle} shadow-sm`}
-                                >
-                                  <div className="font-bold truncate w-full">
-                                    {isManager && <span className="mr-1 text-purple-600">★</span>}
-                                    {shift.profiles?.full_name?.split(' ')[0]}
-                                  </div>
-                                  <div className="text-[9px] opacity-75">{start} - {end}</div>
-                                </div>
-                              );
-                            })}
+                                return (
+                                  <Link 
+                                    key={shift.id} 
+                                    href={`/store/${store.id}`} 
+                                    className={`text-xs p-2 rounded border flex flex-col hover:brightness-95 transition-all cursor-pointer shadow-sm ${cardStyle}`}
+                                  >
+                                    <div className="font-bold uppercase tracking-wide truncate w-full flex items-center gap-1">
+                                      {/* Star is colored based on the background. Purple text for purple bg looks good, or we can use yellow-600 to pop */}
+                                      {isManager && <span className="text-purple-600 text-sm leading-none">★</span>}
+                                      {shift.profiles?.full_name?.split(' ')[0]}
+                                    </div>
+                                    <div className="text-[10px] font-medium opacity-80 mt-0.5 tracking-tight">
+                                      {start} - {end}
+                                    </div>
+                                  </Link>
+                                );
+                              })
+                            )}
                           </div>
                         </td>
                       );
