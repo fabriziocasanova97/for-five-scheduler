@@ -32,7 +32,6 @@ export default function AddShiftModal({
   
   // FORM STATE
   const [employeeId, setEmployeeId] = useState('');
-  // Default to the first day of the week if nothing is pre-selected
   const [date, setDate] = useState(preSelectedDate || (weekDays && weekDays[0]?.isoDate) || '');
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('17:00');
@@ -51,8 +50,6 @@ export default function AddShiftModal({
     setError('');
 
     // --- TIMEZONE FIX START ---
-    // 1. Create Date objects in YOUR Browser's Local Time
-    // new Date("2026-01-05T09:00") creates a date object for 9am EST
     const startObj = new Date(`${date}T${startTime}`);
     const endObj = new Date(`${date}T${endTime}`);
 
@@ -69,17 +66,47 @@ export default function AddShiftModal({
     }
 
     // 3. Convert to UTC Strings for Supabase
-    // 9am EST becomes 2pm UTC. When displayed back, it returns to 9am EST.
     const startIso = startObj.toISOString();
     const endIso = endObj.toISOString();
     // --- TIMEZONE FIX END ---
+
+    // --- STEP 4: CONFLICT DETECTION (NEW) ---
+    // 
+    try {
+      const { data: conflicts, error: conflictError } = await supabase
+        .from('shifts')
+        .select('*, stores(name)') // Fetch store name to show where they are working
+        .eq('user_id', employeeId)
+        .lt('start_time', endIso) // Existing shift starts before new shift ends
+        .gt('end_time', startIso); // Existing shift ends after new shift starts
+
+      if (conflictError) throw conflictError;
+
+      // If we found a conflict...
+      if (conflicts && conflicts.length > 0) {
+        const conflict = conflicts[0];
+        const storeName = conflict.stores?.name || 'Unknown Location';
+        
+        // Format time for the error message
+        const conflictStart = new Date(conflict.start_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
+        const conflictEnd = new Date(conflict.end_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
+
+        setError(`CONFLICT: This person is already working at ${storeName} (${conflictStart} - ${conflictEnd}).`);
+        setLoading(false);
+        return; // STOP EXECUTION HERE
+      }
+    } catch (err) {
+      console.error("Conflict check failed:", err);
+      // We don't stop strictly on technical error, but usually safer to alert
+    }
+    // --- END CONFLICT DETECTION ---
 
     const { error: insertError } = await supabase
       .from('shifts')
       .insert([
         {
           store_id: storeId,
-          user_id: employeeId, // Correct column name
+          user_id: employeeId, 
           start_time: startIso,
           end_time: endIso,
         },
@@ -206,7 +233,7 @@ export default function AddShiftModal({
               disabled={loading}
               className="flex-1 py-3 bg-black text-white font-bold uppercase tracking-widest text-xs hover:bg-gray-800 transition-colors disabled:opacity-50"
             >
-              {loading ? 'Saving...' : 'Save Shift'}
+              {loading ? 'Checking...' : 'Save Shift'}
             </button>
           </div>
 

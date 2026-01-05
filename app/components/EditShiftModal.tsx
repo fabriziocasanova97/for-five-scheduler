@@ -15,6 +15,7 @@ export default function EditShiftModal({ shift, onClose, weekDays }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [staffList, setStaffList] = useState([]);
+  const [error, setError] = useState(''); // Added Error State
 
   // 1. PRE-FILL LOGIC
   const startObj = new Date(shift.start_time);
@@ -41,21 +42,56 @@ export default function EditShiftModal({ shift, onClose, weekDays }) {
     fetchStaff();
   }, []);
 
-  // 3. SAVE CHANGES (With Timezone Fix)
+  // 3. SAVE CHANGES (With Conflict Check)
   const handleUpdate = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
 
     // Create Date objects from your Local Time inputs
-    // "2024-01-05" + "09:00" = Local 9am
     const startDate = new Date(`${formData.date}T${formData.start_time}:00`);
     const endDate = new Date(`${formData.date}T${formData.end_time}:00`);
 
-    // Convert them to UTC strings for the database
+    // Validation
+    if (endDate <= startDate) {
+      setError('End time must be after start time.');
+      setLoading(false);
+      return;
+    }
+
+    // Convert to UTC strings for the database
     const startIso = startDate.toISOString();
     const endIso = endDate.toISOString();
 
-    const { error } = await supabase
+    // --- CONFLICT DETECTION (NEW) ---
+    try {
+      const { data: conflicts, error: conflictError } = await supabase
+        .from('shifts')
+        .select('*, stores(name)') 
+        .eq('user_id', formData.user_id) // Check the user we are assigning
+        .neq('id', shift.id) // <--- CRITICAL: Ignore the shift we are currently editing!
+        .lt('start_time', endIso) 
+        .gt('end_time', startIso); 
+
+      if (conflictError) throw conflictError;
+
+      if (conflicts && conflicts.length > 0) {
+        const conflict = conflicts[0];
+        const storeName = conflict.stores?.name || 'Unknown Location';
+        
+        const conflictStart = new Date(conflict.start_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
+        const conflictEnd = new Date(conflict.end_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
+
+        setError(`CONFLICT: This person is already working at ${storeName} (${conflictStart} - ${conflictEnd}).`);
+        setLoading(false);
+        return; // STOP EXECUTION
+      }
+    } catch (err) {
+      console.error("Conflict check failed:", err);
+    }
+    // --- END CONFLICT DETECTION ---
+
+    const { error: updateError } = await supabase
       .from('shifts')
       .update({
         user_id: formData.user_id,
@@ -64,10 +100,9 @@ export default function EditShiftModal({ shift, onClose, weekDays }) {
       })
       .eq('id', shift.id);
 
-    setLoading(false);
-
-    if (error) {
-      alert('Error updating: ' + error.message);
+    if (updateError) {
+      setError('Error updating: ' + updateError.message);
+      setLoading(false);
     } else {
       window.location.reload();
     }
@@ -92,6 +127,13 @@ export default function EditShiftModal({ shift, onClose, weekDays }) {
             Edit Shift
           </h2>
         </div>
+
+        {/* Error Message (Added) */}
+        {error && (
+          <div className="mb-6 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm font-bold uppercase tracking-wide">
+            {error}
+          </div>
+        )}
         
         <form onSubmit={handleUpdate} className="space-y-6">
           
@@ -123,7 +165,6 @@ export default function EditShiftModal({ shift, onClose, weekDays }) {
               className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm p-3 focus:ring-black focus:border-black rounded-none outline-none appearance-none"
               required
             >
-               {/* If weekDays is missing, we fallback gracefully, but it should be passed */}
                {weekDays && weekDays.map((day) => (
                 <option key={day.isoDate} value={day.isoDate}>
                   {day.name} {day.dateLabel}
@@ -175,7 +216,7 @@ export default function EditShiftModal({ shift, onClose, weekDays }) {
               disabled={loading}
               className="flex-1 py-3 bg-black text-white font-bold uppercase tracking-widest text-xs hover:bg-gray-800 transition-colors disabled:opacity-50"
             >
-              {loading ? 'Saving...' : 'Save Changes'}
+              {loading ? 'Checking...' : 'Save Changes'}
             </button>
           </div>
         </form>
