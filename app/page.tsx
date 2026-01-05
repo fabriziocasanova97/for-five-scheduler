@@ -5,8 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import LogoutButton from './components/LogoutButton';
-import LoginScreen from './components/LoginScreen'; // <--- Import the new Login Screen
-import { isBoss } from './utils/roles';
+import LoginScreen from './components/LoginScreen';
 
 // --- CONFIGURATION ---
 const supabase = createClient(
@@ -39,7 +38,22 @@ export default function Home() {
       
       // 2. Only fetch data if a user is actually logged in
       if (user?.email) {
-        setAmIBoss(isBoss(user.email));
+        
+        // --- NEW ROLE LOGIC ---
+        // Fetch the user's profile to see their Role
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        // STRICT RULE: Only 'Operations' are Bosses.
+        // Managers and Baristas are Read-Only.
+        const userRole = profile?.role || 'Barista';
+        const isOperations = userRole === 'Operations';
+        
+        setAmIBoss(isOperations);
+        // ----------------------
 
         // Get Stores ordered by name
         const { data: storesData } = await supabase.from('stores').select('*').order('name');
@@ -77,7 +91,7 @@ export default function Home() {
             Stores
           </h1>
 
-          {/* MASTER VIEW BUTTON */}
+          {/* MASTER VIEW BUTTON - ONLY FOR OPERATIONS */}
           {amIBoss && (
             <Link 
               href="/overview"

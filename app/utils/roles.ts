@@ -1,13 +1,21 @@
 // --- 1. THE LIST OF BOSS EMAILS ---
-// Make sure to put your real email inside the quotes!
+// KEEP THESE ALL LOWERCASE!
 export const BOSS_EMAILS = [
   'dusan@forfivecoffee.com',
-  'will@forfivecoffee.com',
-  'escummings901@gmail.com'
+  'will@operations.com',
+  'emily@operations.com',
+  'dusan@operations.com',
 ];
 
-// --- 2. THE CHECK FUNCTION ---
+// --- 2. THE SMART CHECK FUNCTION ---
 export function isBoss(email: string | undefined | null): boolean {
   if (!email) return false;
-  return BOSS_EMAILS.includes(email);
+  
+  // STEP 1: Clean the incoming email
+  // .trim() removes invisible spaces at the start/end
+  // .toLowerCase() turns "Will@..." into "will@..."
+  const cleanEmail = email.trim().toLowerCase();
+  
+  // STEP 2: Check the list
+  return BOSS_EMAILS.includes(cleanEmail);
 }

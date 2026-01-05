@@ -50,7 +50,7 @@ export default function AddShiftModal({ storeId, staffList, weekDays, amIBoss })
       const { error } = await supabase.from('shifts').insert([
         {
           store_id: storeId,
-          user_id: formData.user_id, // <--- IMPORTANT: Using user_id
+          user_id: formData.user_id,
           start_time: startDate.toISOString(),
           end_time: endDate.toISOString()
         }
@@ -102,15 +102,19 @@ export default function AddShiftModal({ storeId, staffList, weekDays, amIBoss })
                   onChange={e => setFormData({...formData, user_id: e.target.value})}
                   required
                 >
-                  {staffList.map(staff => (
-                    <option key={staff.id} value={staff.id}>
-                      {staff.full_name}
-                    </option>
-                  ))}
+                  {staffList.map(staff => {
+                    // Check if they are a manager/ops for the label
+                    const isManager = ['Manager', 'Operations'].includes(staff.role);
+                    return (
+                      <option key={staff.id} value={staff.id}>
+                        {staff.full_name} {isManager ? '★' : ''}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
-              {/* DATE SELECT */}
+              {/* DATE SELECT - LOCKED TO CURRENT WEEK */}
               <div>
                 <label className="block text-sm font-bold text-gray-700">Day</label>
                 <select 
@@ -118,6 +122,7 @@ export default function AddShiftModal({ storeId, staffList, weekDays, amIBoss })
                   value={formData.date}
                   onChange={e => setFormData({...formData, date: e.target.value})}
                 >
+                  {/* This maps strictly over the 7 days of the current week */}
                   {weekDays.map(day => (
                     <option key={day.isoDate} value={day.isoDate}>
                       {day.name} ({day.dateLabel})

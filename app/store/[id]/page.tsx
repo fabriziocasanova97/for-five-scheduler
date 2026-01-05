@@ -10,7 +10,8 @@ import AddShiftModal from '@/app/components/AddShiftModal';
 import ShiftCard from '@/app/components/ShiftCard';
 import LaborSummary from '@/app/components/LaborSummary'; 
 import LogoutButton from '@/app/components/LogoutButton';
-import { isBoss } from '@/app/utils/roles';
+
+// NOTE: We removed the 'isBoss' import because we now check the Database Role directly.
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -62,16 +63,28 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
   // --- 2. FETCH DATA (OPTIMIZED & SECURE) ---
   useEffect(() => {
     const initPage = async () => {
-      // A. Check User (Boss Status)
+      // A. Check User & Role
       const { data: { user } } = await supabase.auth.getUser();
-      const bossStatus = isBoss(user?.email);
-      setAmIBoss(bossStatus);
+      
+      if (user) {
+        // Fetch the profile to check if they are 'Operations'
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        // STRICT RULE: Only 'Operations' are Bosses.
+        // Managers and Baristas are Read-Only.
+        const isOperations = profile?.role === 'Operations';
+        setAmIBoss(isOperations);
+      }
 
       // B. Fetch Store & Staff
       const { data: storeData } = await supabase.from('stores').select('*').eq('id', storeId).single();
       const { data: staffData } = await supabase.from('profiles').select('*').order('full_name');
       
-      // C. Smart Fetching
+      // C. Smart Fetching (Current Week)
       const fetchStart = new Date(currentMonday);
       fetchStart.setDate(fetchStart.getDate() - 1); // -1 day buffer
       const fetchEnd = new Date(currentMonday);
@@ -126,20 +139,21 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
           <div className="flex gap-2 items-center w-full md:w-auto justify-between md:justify-end flex-wrap">
             <LogoutButton />
             
-            {/* COPY BUTTON (Only for Boss) */}
+            {/* OPERATIONS CONTROLS: Only Operations can Copy or Add Shifts */}
             {amIBoss && (
-              <CopyWeekButton 
-                storeId={storeId} 
-                currentMonday={currentMonday} 
-              />
+              <>
+                <CopyWeekButton 
+                  storeId={storeId} 
+                  currentMonday={currentMonday} 
+                />
+                <AddShiftModal 
+                  storeId={storeId} 
+                  staffList={staffList} 
+                  weekDays={weekDays} 
+                  amIBoss={amIBoss} 
+                />
+              </>
             )}
-
-            <AddShiftModal 
-              storeId={storeId} 
-              staffList={staffList} 
-              weekDays={weekDays} 
-              amIBoss={amIBoss} 
-            />
           </div>
         </div>
 
@@ -147,7 +161,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
           {/* NAVIGATION BAR - THE "STEERING WHEEL" */}
           <div className="flex items-center justify-between bg-gray-100 p-2 rounded-lg w-full md:max-w-md">
             
-            {/* PREV BUTTON: Only show if Boss */}
+            {/* PREV BUTTON: Only show if Operations */}
             {amIBoss ? (
               <Link href={`/store/${storeId}?date=${prevDateString}`} className="px-3 py-2 bg-white text-xs md:text-sm font-bold rounded shadow hover:bg-gray-50 text-gray-700">
                 ← Last Week
@@ -160,7 +174,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
               Week of {weekDays[0].dateLabel}
             </span>
 
-            {/* NEXT BUTTON: Only show if Boss */}
+            {/* NEXT BUTTON: Only show if Operations */}
             {amIBoss ? (
               <Link href={`/store/${storeId}?date=${nextDateString}`} className="px-3 py-2 bg-white text-xs md:text-sm font-bold rounded shadow hover:bg-gray-50 text-gray-700">
                 Next Week →
