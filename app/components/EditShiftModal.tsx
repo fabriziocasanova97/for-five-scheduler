@@ -10,7 +10,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default function EditShiftModal({ shift, onClose }) {
+// We need weekDays passed in to show the dropdown correctly
+export default function EditShiftModal({ shift, onClose, weekDays }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [staffList, setStaffList] = useState([]);
@@ -25,7 +26,6 @@ export default function EditShiftModal({ shift, onClose }) {
   };
 
   const [formData, setFormData] = useState({
-    // FIX: Use user_id (matching your database), fall back to profile_id if needed
     user_id: shift.user_id || shift.profile_id, 
     date: startObj.toISOString().split('T')[0], // YYYY-MM-DD
     start_time: toTimeStr(startObj),
@@ -47,6 +47,7 @@ export default function EditShiftModal({ shift, onClose }) {
     setLoading(true);
 
     // Create Date objects from your Local Time inputs
+    // "2024-01-05" + "09:00" = Local 9am
     const startDate = new Date(`${formData.date}T${formData.start_time}:00`);
     const endDate = new Date(`${formData.date}T${formData.end_time}:00`);
 
@@ -57,7 +58,7 @@ export default function EditShiftModal({ shift, onClose }) {
     const { error } = await supabase
       .from('shifts')
       .update({
-        user_id: formData.user_id, // <--- FIX: Correct column name
+        user_id: formData.user_id,
         start_time: startIso,
         end_time: endIso
       })
@@ -68,31 +69,41 @@ export default function EditShiftModal({ shift, onClose }) {
     if (error) {
       alert('Error updating: ' + error.message);
     } else {
-      // FIX: Force a hard reload so the change appears instantly
       window.location.reload();
     }
   };
 
   return (
     <div 
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >
+      {/* 1. BACKDROP */}
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"></div>
+
+      {/* 2. MODAL CONTENT */}
       <div 
-        className="bg-white p-6 rounded-lg w-full max-w-md shadow-2xl"
+        className="relative bg-white w-full max-w-md p-8 shadow-2xl transform transition-all border border-gray-200"
         onClick={e => e.stopPropagation()}
       >
-        <h2 className="text-xl font-bold mb-4 text-gray-900">Edit Shift ✏️</h2>
+        {/* Header */}
+        <div className="mb-8 text-center border-b-2 border-black pb-4">
+          <h2 className="text-2xl font-extrabold uppercase tracking-widest text-black">
+            Edit Shift
+          </h2>
+        </div>
         
-        <form onSubmit={handleUpdate} className="flex flex-col gap-4">
+        <form onSubmit={handleUpdate} className="space-y-6">
           
           {/* STAFF */}
           <div>
-            <label className="block text-sm font-bold text-gray-700">Staff Member</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">
+              Staff Member
+            </label>
             <select 
-              className="w-full border p-2 rounded text-gray-900 bg-white"
+              className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm p-3 focus:ring-black focus:border-black rounded-none outline-none appearance-none"
               required
-              value={formData.user_id} // <--- FIX: use user_id
+              value={formData.user_id}
               onChange={e => setFormData({...formData, user_id: e.target.value})}
             >
               {staffList.map(s => (
@@ -101,35 +112,48 @@ export default function EditShiftModal({ shift, onClose }) {
             </select>
           </div>
 
-          {/* DATE */}
+          {/* DATE - Dropdown List */}
           <div>
-            <label className="block text-sm font-bold text-gray-700">Date</label>
-            <input 
-              type="date" 
-              className="w-full border p-2 rounded text-gray-900"
-              required
+            <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">
+              Date
+            </label>
+            <select
               value={formData.date}
-              onChange={e => setFormData({...formData, date: e.target.value})}
-            />
+              onChange={(e) => setFormData({...formData, date: e.target.value})}
+              className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm p-3 focus:ring-black focus:border-black rounded-none outline-none appearance-none"
+              required
+            >
+               {/* If weekDays is missing, we fallback gracefully, but it should be passed */}
+               {weekDays && weekDays.map((day) => (
+                <option key={day.isoDate} value={day.isoDate}>
+                  {day.name} {day.dateLabel}
+                </option>
+              ))}
+              {!weekDays && <option value={formData.date}>{formData.date}</option>}
+            </select>
           </div>
 
           {/* TIME */}
-          <div className="flex gap-4">
-            <div className="w-1/2">
-              <label className="block text-sm font-bold text-gray-700">Start Time</label>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">
+                Start Time
+              </label>
               <input 
                 type="time" 
-                className="w-full border p-2 rounded text-gray-900"
+                className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm p-3 focus:ring-black focus:border-black rounded-none outline-none"
                 required
                 value={formData.start_time}
                 onChange={e => setFormData({...formData, start_time: e.target.value})}
               />
             </div>
-            <div className="w-1/2">
-              <label className="block text-sm font-bold text-gray-700">End Time</label>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">
+                End Time
+              </label>
               <input 
                 type="time" 
-                className="w-full border p-2 rounded text-gray-900"
+                className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm p-3 focus:ring-black focus:border-black rounded-none outline-none"
                 required
                 value={formData.end_time}
                 onChange={e => setFormData({...formData, end_time: e.target.value})}
@@ -138,18 +162,18 @@ export default function EditShiftModal({ shift, onClose }) {
           </div>
 
           {/* BUTTONS */}
-          <div className="flex justify-end gap-2 mt-4">
+          <div className="flex gap-4 pt-4">
             <button 
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded"
+              className="flex-1 py-3 border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
             <button 
               type="submit"
               disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 disabled:opacity-50"
+              className="flex-1 py-3 bg-black text-white font-bold uppercase tracking-widest text-xs hover:bg-gray-800 transition-colors disabled:opacity-50"
             >
               {loading ? 'Saving...' : 'Save Changes'}
             </button>

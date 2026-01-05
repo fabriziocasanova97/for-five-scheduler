@@ -1,61 +1,72 @@
 // @ts-nocheck
 'use client';
 
-export default function LaborSummary({ shifts, amIBoss = false }) {
+import { useMemo } from 'react';
+
+interface LaborSummaryProps {
+  shifts: any[];
+  amIBoss: boolean;
+}
+
+export default function LaborSummary({ shifts, amIBoss }: LaborSummaryProps) {
   
-  // 1. SECURITY CHECK: Only Bosses see this list
-  if (!amIBoss) return null;
+  // Calculate total hours per person
+  const summary = useMemo(() => {
+    const stats: Record<string, number> = {};
+    
+    shifts.forEach(shift => {
+        const name = shift.profiles?.full_name || 'Unassigned';
+        const start = new Date(shift.start_time);
+        const end = new Date(shift.end_time);
+        
+        const durationMs = end.getTime() - start.getTime();
+        const hours = durationMs / (1000 * 60 * 60);
+        
+        stats[name] = (stats[name] || 0) + hours;
+    });
 
-  // 2. Calculate Hours Per Person
-  const staffHours = {};
+    return Object.entries(stats).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [shifts]);
 
-  shifts.forEach(shift => {
-    const name = shift.profiles?.full_name || 'Unknown';
-    const start = new Date(shift.start_time);
-    const end = new Date(shift.end_time);
-    const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-
-    if (!staffHours[name]) {
-      staffHours[name] = 0;
-    }
-    staffHours[name] += hours;
-  });
-
-  // Sort them: People with the most hours go to the top
-  const report = Object.entries(staffHours).sort((a: any, b: any) => b[1] - a[1]);
+  if (!amIBoss || summary.length === 0) return null;
 
   return (
-    <div className="bg-white p-4 rounded-lg border shadow-sm w-full max-w-sm">
-      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide border-b pb-2 mb-2">
-        Weekly Hours Summary
-      </h3>
-      
-      <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-2">
-        {report.map(([name, hours]: any) => {
-          // --- OVERTIME CHECK ---
-          const isOvertime = hours > 40;
-          
-          return (
-            <div key={name} className="flex justify-between items-center text-sm">
-              <span className={`font-medium ${isOvertime ? 'text-red-700 font-bold' : 'text-gray-700'}`}>
-                {name} {isOvertime && '⚠️'}
-              </span>
-              
-              <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                isOvertime 
-                  ? 'bg-red-100 text-red-700 border border-red-200' // Overtime Style
-                  : 'bg-gray-100 text-gray-900'                     // Normal Style
-              }`}>
-                {hours.toFixed(1)} hrs
-              </span>
-            </div>
-          );
-        })}
+    <div className="w-full mt-4 mb-8">
+        {/* Tiny Header */}
+        <h4 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3 border-b border-gray-100 pb-1 inline-block">
+            Weekly Hours Summary
+        </h4>
+        
+        {/* Clean List */}
+        <div className="flex flex-wrap gap-x-8 gap-y-3">
+            {summary.map(([name, hours]) => {
+                const isOvertime = hours > 40; // CHECK FOR OVERTIME
 
-        {report.length === 0 && (
-          <p className="text-gray-400 text-xs italic">No shifts scheduled yet.</p>
-        )}
-      </div>
+                return (
+                    <div key={name} className="flex items-baseline gap-2 group cursor-default">
+                        {/* Name - Red if > 40 */}
+                        <span className={`text-sm font-bold uppercase transition-colors ${
+                            isOvertime ? 'text-red-600' : 'text-gray-700 group-hover:text-black'
+                        }`}>
+                            {name}
+                        </span>
+                        
+                        {/* Hours - Red if > 40 */}
+                        <span className={`text-sm font-extrabold ${
+                            isOvertime ? 'text-red-600' : 'text-black'
+                        }`}>
+                            {hours.toFixed(1)}
+                        </span>
+                        
+                        <span className={`text-[10px] font-bold tracking-wider ${
+                            isOvertime ? 'text-red-400' : 'text-gray-400'
+                        }`}>
+                            HRS
+                        </span>
+                    </div>
+                );
+            })}
+        </div>
     </div>
   );
 }

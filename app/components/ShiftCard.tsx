@@ -11,7 +11,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default function ShiftCard({ shift, amIBoss }) {
+// UPDATE: Accept 'weekDays' as a prop
+export default function ShiftCard({ shift, amIBoss, weekDays }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
 
@@ -23,8 +24,8 @@ export default function ShiftCard({ shift, amIBoss }) {
     window.location.reload(); 
   };
 
-  // --- COLOR LOGIC ---
-  const getShiftStyle = (startTimeStr) => {
+  // --- COLOR LOGIC (Preserved) ---
+  const getShiftStyle = (startTimeStr: string) => {
     const date = new Date(startTimeStr);
     const hour = date.getHours(); 
 
@@ -38,8 +39,6 @@ export default function ShiftCard({ shift, amIBoss }) {
 
   const styleClass = getShiftStyle(shift.start_time);
   
-  // FIX: Show Star for BOTH 'Manager' and 'Operations' roles
-  // (Because Operations people are also leaders on the floor)
   const role = shift.profiles?.role?.trim();
   const isManager = role === 'Manager' || role === 'Operations';
 
@@ -47,7 +46,7 @@ export default function ShiftCard({ shift, amIBoss }) {
     <>
       <div className={`p-2 rounded border mb-2 shadow-sm relative group ${styleClass}`}>
         
-        {/* BOSS CONTROL PANEL (Only for Operations) */}
+        {/* BOSS CONTROL PANEL */}
         {amIBoss && (
           <div className="absolute top-1 right-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-1 bg-white/60 rounded px-1 backdrop-blur-sm shadow-sm z-10">
              
@@ -91,11 +90,12 @@ export default function ShiftCard({ shift, amIBoss }) {
         </div>
       </div>
 
-      {/* RENDER MODAL HERE */}
+      {/* RENDER MODAL HERE (Passed weekDays down) */}
       {isEditing && (
         <EditShiftModal 
           shift={shift} 
           onClose={() => setIsEditing(false)} 
+          weekDays={weekDays} 
         />
       )}
     </>

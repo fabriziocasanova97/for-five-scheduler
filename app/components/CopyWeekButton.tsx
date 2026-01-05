@@ -52,7 +52,7 @@ export default function CopyWeekButton({ storeId, currentMonday }) {
 
         return {
           store_id: shift.store_id,
-          user_id: shift.user_id, // <--- FIX: Only use user_id. Removed profile_id.
+          user_id: shift.user_id, 
           start_time: newStart.toISOString(),
           end_time: newEnd.toISOString()
         };
@@ -78,9 +78,9 @@ export default function CopyWeekButton({ storeId, currentMonday }) {
     <button
       onClick={handleCopy}
       disabled={loading}
-      className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 shadow-sm transition disabled:opacity-50 text-sm whitespace-nowrap"
+      className="border-2 border-black bg-white text-black text-xs font-bold uppercase tracking-wider px-5 py-2.5 hover:bg-gray-100 transition-all disabled:opacity-50 whitespace-nowrap"
     >
-      {loading ? 'Copying...' : '📋 Copy Last Week'}
+      {loading ? 'Copying...' : 'Copy Last Week'}
     </button>
   );
 }
