@@ -28,7 +28,11 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
   const [store, setStore] = useState<any>(null);
   const [staffList, setStaffList] = useState<any[]>([]);
   const [shifts, setShifts] = useState<any[]>([]);
-  const [amIBoss, setAmIBoss] = useState(false);
+  
+  // Roles
+  const [amIBoss, setAmIBoss] = useState(false); 
+  const [currentUserRole, setCurrentUserRole] = useState(''); 
+  
   const [loading, setLoading] = useState(true);
 
   // Modal State
@@ -85,7 +89,10 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
         .select('role')
         .eq('id', user.id)
         .single();
-      setAmIBoss(profile?.role === 'Operations');
+      
+      const role = profile?.role ? profile.role.trim() : '';
+      setAmIBoss(role === 'Operations');
+      setCurrentUserRole(role); 
     }
 
     const { data: storeData } = await supabase.from('stores').select('*').eq('id', storeId).single();
@@ -127,6 +134,12 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-white">Loading...</div>;
 
+  // --- STRICT NAVIGATION RULE ---
+  // Only 'Operations' or 'Manager' can see arrows.
+  // We use toLowerCase() to ensure 'manager' matches 'Manager'
+  const allowedRoles = ['operations', 'manager'];
+  const canNavigate = allowedRoles.includes(currentUserRole.toLowerCase());
+
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
       
@@ -141,21 +154,27 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
 
             {/* Week Navigation */}
             <div className="flex items-center gap-4">
-               <Link href={`/store/${storeId}?date=${prevDateString}`} className="group p-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400 group-hover:text-black transition-colors">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-                  </svg>
-               </Link>
+               {/* PREV BUTTON: Only show if Boss */}
+               {canNavigate && (
+                 <Link href={`/store/${storeId}?date=${prevDateString}`} className="group p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400 group-hover:text-black transition-colors">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                    </svg>
+                 </Link>
+               )}
                
                <span className="text-xs font-bold uppercase tracking-widest text-gray-500">
                  Week of {weekDays[0].dateLabel}
                </span>
 
-               <Link href={`/store/${storeId}?date=${nextDateString}`} className="group p-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400 group-hover:text-black transition-colors">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                  </svg>
-               </Link>
+               {/* NEXT BUTTON: Only show if Boss */}
+               {canNavigate && (
+                 <Link href={`/store/${storeId}?date=${nextDateString}`} className="group p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400 group-hover:text-black transition-colors">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </svg>
+                 </Link>
+               )}
             </div>
         </div>
 
@@ -217,7 +236,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
                           shift={shift} 
                           staffList={staffList}
                           amIBoss={amIBoss}
-                          weekDays={weekDays} // <--- ADDED HERE (Mobile)
+                          weekDays={weekDays} 
                           onDelete={fetchData}
                         />
                       ))
@@ -269,7 +288,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
                         shift={shift} 
                         staffList={staffList}
                         amIBoss={amIBoss}
-                        weekDays={weekDays} // <--- ADDED HERE (Desktop)
+                        weekDays={weekDays} 
                         onDelete={fetchData}
                       />
                     ))
@@ -290,7 +309,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
         </div>
       </main>
 
-      {/* MODAL - Fixed Props! */}
+      {/* MODAL */}
       {isModalOpen && (
         <AddShiftModal 
           isOpen={isModalOpen}
