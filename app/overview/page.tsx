@@ -18,6 +18,15 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+// --- HELPER: FORCE LOCAL DATE STRING (YYYY-MM-DD) ---
+// This fixes the "Tuesday vs Monday" bug by ignoring UTC conversion
+const getLocalISOString = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 function OverviewContent() {
   const searchParams = useSearchParams();
   const queryDate = searchParams.get('date');
@@ -27,7 +36,7 @@ function OverviewContent() {
   const [stores, setStores] = useState([]);
   const [shifts, setShifts] = useState([]);
   
-  // --- DATE MATH ---
+  // --- DATE MATH (Fixed for Local Time) ---
   const anchorDate = queryDate ? new Date(queryDate + 'T12:00:00') : new Date();
   const dayOfWeek = anchorDate.getDay();
   const diffToMonday = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek;
@@ -35,11 +44,15 @@ function OverviewContent() {
   currentMonday.setDate(anchorDate.getDate() + diffToMonday);
   currentMonday.setHours(0, 0, 0, 0);
 
+  // Helper: Get "Today" in YYYY-MM-DD Local Time
+  const todayIso = getLocalISOString(new Date());
+
   const weekDays = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date(currentMonday);
     d.setDate(currentMonday.getDate() + i);
     return {
-      isoDate: d.toISOString().split('T')[0],
+      // Use our new helper so the column headers match local time exactly
+      isoDate: getLocalISOString(d),
       label: d.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' }),
       shortName: d.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()
     };
@@ -47,11 +60,11 @@ function OverviewContent() {
 
   const nextWeek = new Date(currentMonday);
   nextWeek.setDate(currentMonday.getDate() + 7);
-  const nextDateStr = nextWeek.toISOString().split('T')[0];
+  const nextDateStr = getLocalISOString(nextWeek);
 
   const prevWeek = new Date(currentMonday);
   prevWeek.setDate(currentMonday.getDate() - 7);
-  const prevDateStr = prevWeek.toISOString().split('T')[0];
+  const prevDateStr = getLocalISOString(prevWeek);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -71,7 +84,7 @@ function OverviewContent() {
       const weekStart = weekDays[0].isoDate;
       const weekEnd = new Date(weekDays[6].isoDate);
       weekEnd.setDate(weekEnd.getDate() + 1);
-      const weekEndStr = weekEnd.toISOString().split('T')[0];
+      const weekEndStr = getLocalISOString(weekEnd);
 
       const { data: shiftsData } = await supabase
         .from('shifts')
@@ -91,20 +104,15 @@ function OverviewContent() {
     const role = shift.profiles?.role?.trim();
     const isManager = role === 'Manager' || role === 'Operations';
 
-    // 1. MANAGER / OPS -> PURPLE (Overrides time logic)
     if (isManager) {
       return 'bg-purple-100 border-purple-300 text-purple-900';
     }
 
-    // 2. TIME BASED LOGIC (For everyone else)
     const dateObj = new Date(shift.start_time);
     const hour = dateObj.getHours(); 
 
-    // Openers (< 7am) -> Mint
     if (hour < 7) return 'bg-emerald-100 border-emerald-300 text-emerald-900'; 
-    // Morning (< 10am) -> Blue
     if (hour < 10) return 'bg-blue-100 border-blue-300 text-blue-900'; 
-    // Closers (>= 10am) -> Orange
     return 'bg-orange-100 border-orange-300 text-orange-900'; 
   };
 
@@ -168,7 +176,9 @@ function OverviewContent() {
                 
                 {/* Days Headers */}
                 {weekDays.map((day, i) => {
-                   const isToday = day.isoDate === new Date().toISOString().split('T')[0];
+                   // Corrected Comparison
+                   const isToday = day.isoDate === todayIso;
+                   
                    return (
                     <th key={day.isoDate} className={`p-3 border-b border-r border-gray-200 text-center min-w-[140px] ${isToday ? 'bg-blue-600 text-white' : 'bg-black text-white'}`}>
                       <div className={`text-xs font-extrabold tracking-widest uppercase mb-1 ${isToday ? 'text-blue-100' : 'text-gray-400'}`}>
@@ -202,7 +212,9 @@ function OverviewContent() {
                     {weekDays.map(day => {
                       const dayShifts = shifts.filter(s => s.store_id === store.id && s.start_time.startsWith(day.isoDate));
                       dayShifts.sort((a, b) => a.start_time.localeCompare(b.start_time));
-                      const isToday = day.isoDate === new Date().toISOString().split('T')[0];
+                      
+                      // Corrected Comparison
+                      const isToday = day.isoDate === todayIso;
 
                       return (
                         <td key={day.isoDate} className={`p-2 border-b border-r border-gray-200 align-top h-32 min-h-[120px] transition-colors ${isToday ? 'bg-blue-50/30' : ''}`}>
@@ -227,7 +239,6 @@ function OverviewContent() {
                                     className={`text-xs p-2 rounded border flex flex-col hover:brightness-95 transition-all cursor-pointer shadow-sm ${cardStyle}`}
                                   >
                                     <div className="font-bold uppercase tracking-wide truncate w-full flex items-center gap-1">
-                                      {/* Star is colored based on the background. Purple text for purple bg looks good, or we can use yellow-600 to pop */}
                                       {isManager && <span className="text-purple-600 text-sm leading-none">★</span>}
                                       {shift.profiles?.full_name?.split(' ')[0]}
                                     </div>

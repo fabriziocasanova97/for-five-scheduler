@@ -18,7 +18,7 @@ const getStoreImage = (storeName: string) => {
   return `/stores/${cleanName}.jpg`;
 };
 
-// --- COMPONENT: LOGIN SCREEN (Safe & Sound) ---
+// --- COMPONENT: LOGIN SCREEN ---
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -115,11 +115,48 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
     setMounted(true); 
     const fetchData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      
+      // Check if Operations/Boss
       const bossStatus = isBoss(user?.email);
       setAmIBoss(bossStatus);
 
-      const { data: storesData, error } = await supabase.from('stores').select('*').order('name');
-      if (!error) setStores(storesData || []);
+      let dataToSet = [];
+
+      if (bossStatus) {
+        // SCENARIO A: BOSS (Operations)
+        // Fetch ALL stores
+        const { data: allStores } = await supabase
+          .from('stores')
+          .select('*')
+          .order('name');
+        dataToSet = allStores || [];
+      } else {
+        // SCENARIO B: STAFF / BARISTA
+        // 1. Find all shifts for this user to see which stores they belong to
+        const { data: myShifts } = await supabase
+          .from('shifts')
+          .select('store_id')
+          .eq('user_id', user?.id);
+        
+        // 2. Extract unique Store IDs from their shifts
+        // (Using Set to remove duplicates)
+        const myStoreIds = [...new Set(myShifts?.map(s => s.store_id) || [])];
+
+        if (myStoreIds.length > 0) {
+          // 3. Fetch details only for those stores
+          const { data: myStores } = await supabase
+            .from('stores')
+            .select('*')
+            .in('id', myStoreIds)
+            .order('name');
+          dataToSet = myStores || [];
+        } else {
+          // User has no shifts yet -> No stores visible
+          dataToSet = [];
+        }
+      }
+
+      setStores(dataToSet);
       setLoading(false);
     };
     fetchData();
@@ -142,7 +179,7 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
               Locations
             </h1>
             <p className="text-sm text-gray-500 uppercase tracking-widest font-medium">
-              Select store to view schedules
+              {amIBoss ? 'Select store to view schedules' : 'My Assigned Locations'}
             </p>
           </div>
           
@@ -150,7 +187,6 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
             {mounted && amIBoss && (
               <Link 
                 href="/overview"
-                // UPDATED: Editorial Style (Black bg, white text, uppercase, bold tracking)
                 className="flex items-center gap-2 bg-black text-white px-5 py-2.5 text-sm font-bold uppercase tracking-wider shadow-sm hover:bg-gray-800 transition-all"
               >
                 Master View
@@ -159,7 +195,6 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
 
             <button
               onMouseDown={handleLogout} 
-              // UPDATED: Removed rounded-lg to match sharper theme
               className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-5 py-2.5 text-sm font-bold uppercase tracking-wider shadow-sm hover:bg-gray-100 hover:text-black hover:border-black transition-all cursor-pointer"
             >
               Sign Out
@@ -168,14 +203,23 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
         </div>
       </header>
 
-      {/* MAIN CONTENT - CLEAN EDITORIAL LIST */}
+      {/* MAIN CONTENT */}
       <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        
+        {/* EMPTY STATE - For new hires with no shifts yet */}
+        {stores.length === 0 && !loading && (
+          <div className="text-center py-12">
+            <div className="text-gray-400 text-4xl mb-4">☕️</div>
+            <h3 className="text-lg font-bold text-gray-900 uppercase tracking-wider">No Locations Found</h3>
+            <p className="text-gray-500 mt-2">You haven't been scheduled at any locations yet.</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-16">
           {stores.map((store: any) => (
             <Link key={store.id} href={`/store/${store.id}`} className="group block">
-              {/* NO CARD WRAPPER - Just Content */}
               
-              {/* 1. Image - Clean, no borders, just the image */}
+              {/* 1. Image */}
               <div className="aspect-w-16 aspect-h-9 mb-4 overflow-hidden bg-gray-100">
                 <img 
                   src={getStoreImage(store.name)} 
@@ -189,14 +233,12 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
                 />
               </div>
 
-              {/* 2. Text & Line - Left Aligned */}
-              {/* The border-b creates the line under the name */}
+              {/* 2. Text & Line */}
               <div className="border-b border-gray-300 pb-2 group-hover:border-black transition-colors duration-300">
                 <div className="flex justify-between items-end">
                   <h3 className="text-xl font-bold text-gray-900 uppercase tracking-wider truncate group-hover:text-black">
                     {store.name}
                   </h3>
-                  {/* Optional: Small arrow that appears on hover */}
                   <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-lg">
                     →
                   </span>

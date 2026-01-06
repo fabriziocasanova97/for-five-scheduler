@@ -11,11 +11,20 @@ import AddShiftModal from '@/app/components/AddShiftModal';
 import ShiftCard from '@/app/components/ShiftCard';
 import CopyWeekButton from '@/app/components/CopyWeekButton';
 import LaborSummary from '@/app/components/LaborSummary';
+import StoreNote from '@/app/components/StoreNote'; 
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+// --- HELPER: FORCE LOCAL DATE STRING (YYYY-MM-DD) ---
+const getLocalISOString = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export default function StorePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -30,7 +39,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
   const [shifts, setShifts] = useState<any[]>([]);
   
   // Roles
-  const [amIBoss, setAmIBoss] = useState(false); 
+  const [amIBoss, setAmIBoss] = useState(false); // Strictly 'Operations'
   const [currentUserRole, setCurrentUserRole] = useState(''); 
   
   const [loading, setLoading] = useState(true);
@@ -47,17 +56,15 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
   currentMonday.setDate(anchorDate.getDate() + diffToMonday);
   currentMonday.setHours(0, 0, 0, 0);
 
-  // Navigation Links
   const prevWeek = new Date(currentMonday);
   prevWeek.setDate(currentMonday.getDate() - 7);
-  const prevDateString = prevWeek.toISOString().split('T')[0];
+  const prevDateString = getLocalISOString(prevWeek);
 
   const nextWeek = new Date(currentMonday);
   nextWeek.setDate(currentMonday.getDate() + 7);
-  const nextDateString = nextWeek.toISOString().split('T')[0];
+  const nextDateString = getLocalISOString(nextWeek);
 
-  // Helper: Is this date today?
-  const todayIso = new Date().toISOString().split('T')[0];
+  const todayIso = getLocalISOString(new Date());
 
   const weekDays = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date(currentMonday);
@@ -65,17 +72,15 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
     return {
       name: d.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase(),
       dateLabel: d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }),
-      isoDate: d.toISOString().split('T')[0],
+      isoDate: getLocalISOString(d),
     };
   });
 
-  // Calculate Exact Week Boundaries for Summary
   const weekStartStr = weekDays[0].isoDate;
   const weekEndDate = new Date(weekDays[6].isoDate);
   weekEndDate.setDate(weekEndDate.getDate() + 1); 
-  const weekEndStr = weekEndDate.toISOString().split('T')[0];
+  const weekEndStr = getLocalISOString(weekEndDate);
 
-  // Filter Shifts strictly for this week (for the Summary calculation)
   const currentWeekShifts = shifts.filter(s => 
     s.start_time >= weekStartStr && s.start_time < weekEndStr
   );
@@ -91,14 +96,14 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
         .single();
       
       const role = profile?.role ? profile.role.trim() : '';
-      setAmIBoss(role === 'Operations');
+      setAmIBoss(role === 'Operations'); // Only true for Operations
       setCurrentUserRole(role); 
     }
 
     const { data: storeData } = await supabase.from('stores').select('*').eq('id', storeId).single();
     const { data: staffData } = await supabase.from('profiles').select('*').order('full_name');
     
-    // Fetch Buffer (Monday -1 to Sunday +1)
+    // Fetch Buffer
     const fetchStart = new Date(currentMonday);
     fetchStart.setDate(fetchStart.getDate() - 1);
     const fetchEnd = new Date(currentMonday);
@@ -134,9 +139,6 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-white">Loading...</div>;
 
-  // --- STRICT NAVIGATION RULE ---
-  // Only 'Operations' or 'Manager' can see arrows.
-  // We use toLowerCase() to ensure 'manager' matches 'Manager'
   const allowedRoles = ['operations', 'manager'];
   const canNavigate = allowedRoles.includes(currentUserRole.toLowerCase());
 
@@ -146,15 +148,13 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
       {/* --- HEADER SECTION --- */}
       <div className="max-w-7xl mx-auto px-4 pt-8 pb-6">
         
-        {/* Top Row: Back Link & Week Nav */}
+        {/* Navigation Row */}
         <div className="flex justify-between items-center mb-4">
             <Link href="/" className="text-xs font-bold text-gray-400 hover:text-black uppercase tracking-widest transition-colors">
                 ← Locations
             </Link>
 
-            {/* Week Navigation */}
             <div className="flex items-center gap-4">
-               {/* PREV BUTTON: Only show if Boss */}
                {canNavigate && (
                  <Link href={`/store/${storeId}?date=${prevDateString}`} className="group p-2">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400 group-hover:text-black transition-colors">
@@ -167,7 +167,6 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
                  Week of {weekDays[0].dateLabel}
                </span>
 
-               {/* NEXT BUTTON: Only show if Boss */}
                {canNavigate && (
                  <Link href={`/store/${storeId}?date=${nextDateString}`} className="group p-2">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400 group-hover:text-black transition-colors">
@@ -178,8 +177,8 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
             </div>
         </div>
 
-        {/* Store Title & Controls */}
-        <div className="border-b-2 border-black pb-4 flex flex-col md:flex-row justify-between items-end gap-4">
+        {/* Store Title */}
+        <div className="border-b-2 border-black pb-4 mb-4 flex flex-col md:flex-row justify-between items-end gap-4">
             <h1 className="text-4xl md:text-5xl font-extrabold uppercase tracking-widest text-left">
               {store?.name}
             </h1>
@@ -201,13 +200,22 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
             )}
         </div>
 
-        {/* --- LABOR SUMMARY --- */}
-        <div className="mt-6">
-          <LaborSummary 
-            shifts={currentWeekShifts} 
-            amIBoss={amIBoss} 
-          />
-        </div>
+        {/* --- STORE ANNOUNCEMENTS --- */}
+        <StoreNote 
+          storeId={storeId} 
+          initialNote={store?.notes} 
+          amIBoss={amIBoss}
+        />
+
+        {/* --- LABOR SUMMARY (HIDDEN IF NOT BOSS) --- */}
+        {amIBoss && (
+          <div className="mt-6">
+            <LaborSummary 
+              shifts={currentWeekShifts} 
+              amIBoss={amIBoss} 
+            />
+          </div>
+        )}
 
       </div>
 
