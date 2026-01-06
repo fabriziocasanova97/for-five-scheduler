@@ -39,7 +39,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
   const [shifts, setShifts] = useState<any[]>([]);
   
   // Roles
-  const [amIBoss, setAmIBoss] = useState(false); // Strictly 'Operations'
+  const [amIBoss, setAmIBoss] = useState(false); 
   const [currentUserRole, setCurrentUserRole] = useState(''); 
   
   const [loading, setLoading] = useState(true);
@@ -96,7 +96,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
         .single();
       
       const role = profile?.role ? profile.role.trim() : '';
-      setAmIBoss(role === 'Operations'); // Only true for Operations
+      setAmIBoss(role === 'Operations'); 
       setCurrentUserRole(role); 
     }
 
@@ -177,8 +177,8 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
             </div>
         </div>
 
-        {/* Store Title */}
-        <div className="border-b-2 border-black pb-4 mb-4 flex flex-col md:flex-row justify-between items-end gap-4">
+        {/* Store Title & Controls (UPDATED: Aligned Left on Mobile) */}
+        <div className="border-b-2 border-black pb-4 mb-4 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
             <h1 className="text-4xl md:text-5xl font-extrabold uppercase tracking-widest text-left">
               {store?.name}
             </h1>

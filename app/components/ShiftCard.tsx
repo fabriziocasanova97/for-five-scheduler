@@ -11,7 +11,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// UPDATE: Accept 'weekDays' as a prop
 export default function ShiftCard({ shift, amIBoss, weekDays }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -24,17 +23,26 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
     window.location.reload(); 
   };
 
-  // --- COLOR LOGIC (Preserved) ---
+  // --- COLOR LOGIC (UPDATED: No Shadow, Just Bold Borders) ---
   const getShiftStyle = (startTimeStr: string) => {
+    // 1. CHECK ROLE FIRST (Manager = Purple Border)
+    const role = shift.profiles?.role?.trim();
+    if (role === 'Manager' || role === 'Operations') {
+      return 'bg-white border-2 border-purple-600 text-gray-900';
+    }
+
+    // 2. CHECK TIME
     const date = new Date(startTimeStr);
     const hour = date.getHours(); 
 
-    // 1. OPENERS (Start before 7:00am) -> Mint Green
-    if (hour < 7) return 'bg-emerald-100 border-emerald-300 text-emerald-900'; 
-    // 2. MORNING & MID (Start 7:00am - 9:59am) -> Blue
-    if (hour < 10) return 'bg-blue-100 border-blue-300 text-blue-900'; 
-    // 3. CLOSERS (Start 10:00am or later) -> Orange
-    return 'bg-orange-100 border-orange-300 text-orange-900'; 
+    // Openers (< 7:00am) -> Mint/Emerald Border
+    if (hour < 7) return 'bg-white border-2 border-emerald-500 text-gray-900'; 
+    
+    // Morning (< 10:00am) -> Blue Border
+    if (hour < 10) return 'bg-white border-2 border-blue-500 text-gray-900'; 
+    
+    // Closers (>= 10:00am) -> Orange Border
+    return 'bg-white border-2 border-orange-500 text-gray-900'; 
   };
 
   const styleClass = getShiftStyle(shift.start_time);
@@ -44,11 +52,11 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
 
   return (
     <>
-      <div className={`p-2 rounded border mb-2 shadow-sm relative group ${styleClass}`}>
+      <div className={`p-2 rounded mb-2 relative group transition-all ${styleClass}`}>
         
         {/* BOSS CONTROL PANEL */}
         {amIBoss && (
-          <div className="absolute top-1 right-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-1 bg-white/60 rounded px-1 backdrop-blur-sm shadow-sm z-10">
+          <div className="absolute top-1 right-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-1 bg-white/90 border border-gray-200 rounded px-1 backdrop-blur-sm z-10">
              
              {/* EDIT BUTTON */}
              <button 
@@ -73,9 +81,14 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
         )}
 
         {/* Name & Role */}
-        <div className="font-bold text-sm flex items-center">
-          {isManager && <span className="mr-1 text-yellow-600 text-lg leading-none pt-1">★</span>}
-          <span className={isManager ? "ml-1" : ""}>
+        <div className="font-bold text-sm flex items-center gap-1">
+          {isManager && (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-purple-600">
+              <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+            </svg>
+          )}
+          
+          <span className="truncate">
             {shift.profiles?.full_name?.split(' ')[0] || 'Unknown'}
           </span>
         </div>

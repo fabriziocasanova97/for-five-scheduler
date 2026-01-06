@@ -19,7 +19,6 @@ const supabase = createClient(
 );
 
 // --- HELPER: FORCE LOCAL DATE STRING (YYYY-MM-DD) ---
-// This fixes the "Tuesday vs Monday" bug by ignoring UTC conversion
 const getLocalISOString = (date: Date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -36,7 +35,7 @@ function OverviewContent() {
   const [stores, setStores] = useState([]);
   const [shifts, setShifts] = useState([]);
   
-  // --- DATE MATH (Fixed for Local Time) ---
+  // --- DATE MATH ---
   const anchorDate = queryDate ? new Date(queryDate + 'T12:00:00') : new Date();
   const dayOfWeek = anchorDate.getDay();
   const diffToMonday = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek;
@@ -44,14 +43,12 @@ function OverviewContent() {
   currentMonday.setDate(anchorDate.getDate() + diffToMonday);
   currentMonday.setHours(0, 0, 0, 0);
 
-  // Helper: Get "Today" in YYYY-MM-DD Local Time
   const todayIso = getLocalISOString(new Date());
 
   const weekDays = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date(currentMonday);
     d.setDate(currentMonday.getDate() + i);
     return {
-      // Use our new helper so the column headers match local time exactly
       isoDate: getLocalISOString(d),
       label: d.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' }),
       shortName: d.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()
@@ -99,21 +96,27 @@ function OverviewContent() {
     fetchData();
   }, [queryDate]);
 
-  // --- COLOR LOGIC ---
+  // --- COLOR LOGIC (White BG + Bold Borders + No Shadow) ---
   const getShiftStyle = (shift) => {
     const role = shift.profiles?.role?.trim();
     const isManager = role === 'Manager' || role === 'Operations';
 
+    // Manager -> Purple Border
     if (isManager) {
-      return 'bg-purple-100 border-purple-300 text-purple-900';
+      return 'bg-white border-2 border-purple-600 text-gray-900';
     }
 
     const dateObj = new Date(shift.start_time);
     const hour = dateObj.getHours(); 
 
-    if (hour < 7) return 'bg-emerald-100 border-emerald-300 text-emerald-900'; 
-    if (hour < 10) return 'bg-blue-100 border-blue-300 text-blue-900'; 
-    return 'bg-orange-100 border-orange-300 text-orange-900'; 
+    // Opener -> Emerald Border
+    if (hour < 7) return 'bg-white border-2 border-emerald-500 text-gray-900'; 
+    
+    // Morning -> Blue Border
+    if (hour < 10) return 'bg-white border-2 border-blue-500 text-gray-900'; 
+    
+    // Closer -> Orange Border
+    return 'bg-white border-2 border-orange-500 text-gray-900'; 
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-white text-sm font-bold uppercase tracking-widest">Loading...</div>;
@@ -135,7 +138,7 @@ function OverviewContent() {
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">All Locations Overview</p>
           </div>
           
-          {/* Week Controls */}
+          {/* Week Controls (UPDATED STYLE) */}
           <div className="flex items-center gap-6">
             <Link 
               href={`/overview?date=${prevDateStr}`} 
@@ -146,7 +149,7 @@ function OverviewContent() {
               </svg>
             </Link>
 
-            <span className="font-extrabold text-sm uppercase tracking-widest text-black whitespace-nowrap border-b-2 border-transparent">
+            <span className="text-xs font-bold uppercase tracking-widest text-gray-500 whitespace-nowrap">
               Week of {weekDays[0].isoDate.slice(5)}
             </span>
 
@@ -169,14 +172,13 @@ function OverviewContent() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr>
-                {/* Sticky Store Column Header */}
-                <th className="p-4 border-b border-r border-gray-200 bg-white sticky left-0 z-30 w-56 text-xs font-extrabold text-black uppercase tracking-widest shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)]">
+                {/* Sticky Store Column Header - WIDTH CHANGED FROM w-56 TO w-40 */}
+                <th className="p-4 border-b border-r border-gray-200 bg-white sticky left-0 z-30 w-40 text-xs font-extrabold text-black uppercase tracking-widest shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)]">
                   Store Location
                 </th>
                 
                 {/* Days Headers */}
                 {weekDays.map((day, i) => {
-                   // Corrected Comparison
                    const isToday = day.isoDate === todayIso;
                    
                    return (
@@ -213,7 +215,6 @@ function OverviewContent() {
                       const dayShifts = shifts.filter(s => s.store_id === store.id && s.start_time.startsWith(day.isoDate));
                       dayShifts.sort((a, b) => a.start_time.localeCompare(b.start_time));
                       
-                      // Corrected Comparison
                       const isToday = day.isoDate === todayIso;
 
                       return (
@@ -236,10 +237,15 @@ function OverviewContent() {
                                   <Link 
                                     key={shift.id} 
                                     href={`/store/${store.id}`} 
-                                    className={`text-xs p-2 rounded border flex flex-col hover:brightness-95 transition-all cursor-pointer shadow-sm ${cardStyle}`}
+                                    className={`text-xs p-2 rounded flex flex-col hover:brightness-95 transition-all cursor-pointer ${cardStyle}`}
                                   >
                                     <div className="font-bold uppercase tracking-wide truncate w-full flex items-center gap-1">
-                                      {isManager && <span className="text-purple-600 text-sm leading-none">★</span>}
+                                      {/* NEW SVG STAR for Master View */}
+                                      {isManager && (
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-purple-600 flex-shrink-0">
+                                          <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+                                        </svg>
+                                      )}
                                       {shift.profiles?.full_name?.split(' ')[0]}
                                     </div>
                                     <div className="text-[10px] font-medium opacity-80 mt-0.5 tracking-tight">
