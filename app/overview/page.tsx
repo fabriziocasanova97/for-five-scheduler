@@ -123,10 +123,11 @@ function OverviewContent() {
   if (!authorized) return <div className="p-12 text-center text-red-600 font-bold uppercase tracking-widest">🚫 Access Denied</div>;
 
   return (
-    <div className="min-h-screen bg-white flex flex-col font-sans text-gray-900">
+    // UPDATED: h-screen and overflow-hidden to lock viewport
+    <div className="h-screen overflow-hidden bg-white flex flex-col font-sans text-gray-900">
       
-      {/* HEADER SECTION */}
-      <div className="bg-white border-b border-gray-200 px-6 py-6 sticky left-0 right-0 top-0 z-40 shadow-sm">
+      {/* HEADER SECTION - UPDATED: Removed sticky, added z-50 relative */}
+      <div className="bg-white border-b border-gray-200 px-6 py-6 shadow-sm flex-shrink-0 z-50 relative">
         <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-end max-w-[1800px] mx-auto">
           
           {/* Top Left: Back Link + Title */}
@@ -138,7 +139,7 @@ function OverviewContent() {
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">All Locations Overview</p>
           </div>
           
-          {/* Week Controls (UPDATED STYLE) */}
+          {/* Week Controls */}
           <div className="flex items-center gap-6">
             <Link 
               href={`/overview?date=${prevDateStr}`} 
@@ -166,23 +167,23 @@ function OverviewContent() {
         </div>
       </div>
 
-      {/* MASTER GRID */}
-      <div className="flex-1 overflow-x-auto bg-white">
+      {/* MASTER GRID - UPDATED: overflow-auto here allows scrolling the table only */}
+      <div className="flex-1 overflow-auto bg-white relative">
         <div className="min-w-[1200px]"> 
           <table className="w-full text-left border-collapse">
             <thead>
               <tr>
-                {/* Sticky Store Column Header - WIDTH CHANGED FROM w-56 TO w-40 */}
-                <th className="p-4 border-b border-r border-gray-200 bg-white sticky left-0 z-30 w-40 text-xs font-extrabold text-black uppercase tracking-widest shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)]">
+                {/* Sticky Store Column Header - UPDATED: sticky top-0 and shadow tweak */}
+                <th className="p-4 border-b border-r border-gray-200 bg-white sticky left-0 top-0 z-50 w-40 text-xs font-extrabold text-black uppercase tracking-widest shadow-[4px_4px_10px_-4px_rgba(0,0,0,0.1)]">
                   Store Location
                 </th>
                 
-                {/* Days Headers */}
+                {/* Days Headers - UPDATED: sticky top-0 */}
                 {weekDays.map((day, i) => {
                    const isToday = day.isoDate === todayIso;
                    
                    return (
-                    <th key={day.isoDate} className={`p-3 border-b border-r border-gray-200 text-center min-w-[140px] ${isToday ? 'bg-blue-600 text-white' : 'bg-black text-white'}`}>
+                    <th key={day.isoDate} className={`p-3 border-b border-r border-gray-200 text-center min-w-[140px] sticky top-0 z-40 ${isToday ? 'bg-blue-600 text-white' : 'bg-black text-white'}`}>
                       <div className={`text-xs font-extrabold tracking-widest uppercase mb-1 ${isToday ? 'text-blue-100' : 'text-gray-400'}`}>
                         {day.shortName}
                       </div>
