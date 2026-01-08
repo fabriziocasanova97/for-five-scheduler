@@ -35,6 +35,7 @@ export default function AddShiftModal({
   const [date, setDate] = useState(preSelectedDate || (weekDays && weekDays[0]?.isoDate) || '');
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('17:00');
+  const [note, setNote] = useState(''); // NEW: Note State
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -70,34 +71,30 @@ export default function AddShiftModal({
     const endIso = endObj.toISOString();
     // --- TIMEZONE FIX END ---
 
-    // --- STEP 4: CONFLICT DETECTION (NEW) ---
-    // 
+    // --- STEP 4: CONFLICT DETECTION ---
     try {
       const { data: conflicts, error: conflictError } = await supabase
         .from('shifts')
-        .select('*, stores(name)') // Fetch store name to show where they are working
+        .select('*, stores(name)') 
         .eq('user_id', employeeId)
-        .lt('start_time', endIso) // Existing shift starts before new shift ends
-        .gt('end_time', startIso); // Existing shift ends after new shift starts
+        .lt('start_time', endIso) 
+        .gt('end_time', startIso); 
 
       if (conflictError) throw conflictError;
 
-      // If we found a conflict...
       if (conflicts && conflicts.length > 0) {
         const conflict = conflicts[0];
         const storeName = conflict.stores?.name || 'Unknown Location';
         
-        // Format time for the error message
         const conflictStart = new Date(conflict.start_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
         const conflictEnd = new Date(conflict.end_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
 
         setError(`CONFLICT: This person is already working at ${storeName} (${conflictStart} - ${conflictEnd}).`);
         setLoading(false);
-        return; // STOP EXECUTION HERE
+        return; 
       }
     } catch (err) {
       console.error("Conflict check failed:", err);
-      // We don't stop strictly on technical error, but usually safer to alert
     }
     // --- END CONFLICT DETECTION ---
 
@@ -109,6 +106,7 @@ export default function AddShiftModal({
           user_id: employeeId, 
           start_time: startIso,
           end_time: endIso,
+          note: note.trim() || null, // NEW: Save the note
         },
       ]);
 
@@ -217,6 +215,20 @@ export default function AddShiftModal({
                 required
               />
             </div>
+          </div>
+
+          {/* NEW: Note Input */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">
+              Note (Optional)
+            </label>
+            <input
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. Bring keys, Inventory check..."
+              className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm p-3 focus:ring-black focus:border-black rounded-none outline-none"
+            />
           </div>
 
           {/* Actions */}

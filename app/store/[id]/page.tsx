@@ -109,6 +109,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
     const fetchEnd = new Date(currentMonday);
     fetchEnd.setDate(fetchEnd.getDate() + 8);
 
+    // Note: select('*') automatically includes the new 'note' column
     const { data: shiftData } = await supabase
       .from('shifts')
       .select(`*, profiles ( full_name, role )`) 
@@ -177,7 +178,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
             </div>
         </div>
 
-        {/* Store Title & Controls (UPDATED: Aligned Left on Mobile) */}
+        {/* Store Title & Controls */}
         <div className="border-b-2 border-black pb-4 mb-4 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
             <h1 className="text-4xl md:text-5xl font-extrabold uppercase tracking-widest text-left">
               {store?.name}
@@ -207,7 +208,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
           amIBoss={amIBoss}
         />
 
-        {/* --- LABOR SUMMARY (HIDDEN IF NOT BOSS) --- */}
+        {/* --- LABOR SUMMARY --- */}
         {amIBoss && (
           <div className="mt-6">
             <LaborSummary 

@@ -101,6 +101,14 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
           {new Date(shift.start_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'})} - 
           {new Date(shift.end_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'})}
         </div>
+
+        {/* NEW: Note Display */}
+        {shift.note && (
+           <div className="mt-1 text-[10px] font-semibold text-gray-500 italic border-t border-gray-200/50 pt-1 leading-tight break-words">
+             "{shift.note}"
+           </div>
+        )}
+
       </div>
 
       {/* RENDER MODAL HERE (Passed weekDays down) */}
