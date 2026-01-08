@@ -83,9 +83,10 @@ function OverviewContent() {
       weekEnd.setDate(weekEnd.getDate() + 1);
       const weekEndStr = getLocalISOString(weekEnd);
 
+      // FIX: Reverted to the exact syntax that works on the Store Page
       const { data: shiftsData } = await supabase
         .from('shifts')
-        .select('*, profiles(full_name, role)')
+        .select('*, profiles ( full_name, role )')
         .gte('start_time', weekStart)
         .lt('start_time', weekEndStr);
       
@@ -173,12 +174,12 @@ function OverviewContent() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr>
-                {/* Sticky Store Column Header - UPDATED: sticky top-0 and shadow tweak */}
+                {/* Sticky Store Column Header */}
                 <th className="p-4 border-b border-r border-gray-200 bg-white sticky left-0 top-0 z-50 w-40 text-xs font-extrabold text-black uppercase tracking-widest shadow-[4px_4px_10px_-4px_rgba(0,0,0,0.1)]">
                   Store Location
                 </th>
                 
-                {/* Days Headers - UPDATED: sticky top-0 */}
+                {/* Days Headers */}
                 {weekDays.map((day, i) => {
                    const isToday = day.isoDate === todayIso;
                    
@@ -219,7 +220,7 @@ function OverviewContent() {
                       const isToday = day.isoDate === todayIso;
 
                       return (
-                        <td key={day.isoDate} className={`p-2 border-b border-r border-gray-200 align-top h-32 min-h-[120px] transition-colors ${isToday ? 'bg-blue-50/30' : ''}`}>
+                        <td key={day.isoDate} className={`p-2 border-b border-r border-gray-200 align-top min-h-[120px] transition-colors ${isToday ? 'bg-blue-50/30' : ''}`}>
                           <div className="flex flex-col gap-2 h-full">
                             {dayShifts.length === 0 ? (
                                <div className="flex-1 flex items-center justify-center">
@@ -241,7 +242,7 @@ function OverviewContent() {
                                     className={`text-xs p-2 rounded flex flex-col hover:brightness-95 transition-all cursor-pointer ${cardStyle}`}
                                   >
                                     <div className="font-bold uppercase tracking-wide truncate w-full flex items-center gap-1">
-                                      {/* NEW SVG STAR for Master View */}
+                                      {/* SVG STAR */}
                                       {isManager && (
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-purple-600 flex-shrink-0">
                                           <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
@@ -252,6 +253,14 @@ function OverviewContent() {
                                     <div className="text-[10px] font-medium opacity-80 mt-0.5 tracking-tight">
                                       {start} - {end}
                                     </div>
+
+                                    {/* NOTE DISPLAY with Safety Check */}
+                                    {shift?.note && (
+                                       <div className="mt-1 text-[9px] font-semibold text-gray-500 italic border-t border-gray-200/50 pt-0.5 leading-tight break-words">
+                                         {shift.note}
+                                       </div>
+                                    )}
+
                                   </Link>
                                 );
                               })
