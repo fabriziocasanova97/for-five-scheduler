@@ -25,9 +25,10 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
 
   // --- STYLE LOGIC ---
   const getShiftStyle = (shift) => {
-    // 1. OPEN SHIFT (No User) -> Red Dashed Border
+    // 1. OPEN SHIFT (No User) -> Navy Blue Dashed Border
+    // CHANGED: bg-red-50 -> bg-blue-50, border-red-400 -> border-blue-400, text-red-900 -> text-blue-900
     if (!shift.user_id) {
-      return 'bg-red-50 border-2 border-dashed border-red-400 text-red-900';
+      return 'bg-blue-50 border-2 border-dashed border-blue-400 text-blue-900';
     }
 
     // 2. CHECK ROLE (Manager = Purple Border)
@@ -90,7 +91,8 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
         <div className="font-bold text-sm flex items-center gap-1">
           {/* If Open Shift, show 'OPEN SHIFT' label */}
           {isOpenShift ? (
-            <span className="text-red-600 uppercase tracking-widest text-[10px]">
+            // CHANGED: text-red-600 -> text-blue-700
+            <span className="text-blue-700 uppercase tracking-widest text-[10px]">
               ● Open Shift
             </span>
           ) : (
@@ -118,7 +120,8 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
 
         {/* NEW: Note Display */}
         {shift.note && (
-           <div className={`mt-1 text-[10px] font-semibold italic border-t pt-1 leading-tight break-words ${isOpenShift ? 'text-red-800 border-red-200' : 'text-gray-500 border-gray-200/50'}`}>
+           // CHANGED: text-red-800 border-red-200 -> text-blue-800 border-blue-200
+           <div className={`mt-1 text-[12px] font-semibold italic border-t pt-1 leading-tight break-words ${isOpenShift ? 'text-blue-800 border-blue-200' : 'text-gray-500 border-gray-200/50'}`}>
              "{shift.note}"
            </div>
         )}

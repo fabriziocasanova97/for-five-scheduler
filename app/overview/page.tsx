@@ -19,7 +19,6 @@ const supabase = createClient(
 );
 
 // --- HELPER: FORCE LOCAL DATE STRING (YYYY-MM-DD) ---
-// This ensures we compare apples to apples (Local Time vs Local Column)
 const getLocalISOString = (date: Date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -82,15 +81,19 @@ function OverviewContent() {
       const weekStart = weekDays[0].isoDate;
       const weekEnd = new Date(weekDays[6].isoDate);
       weekEnd.setDate(weekEnd.getDate() + 1);
-      const weekEndStr = getLocalISOString(weekEnd);
+      
+      // FIX: Add 2 extra buffer days to the fetch query.
+      // This ensures we catch Sunday night shifts that exist in UTC 'Monday morning'.
+      const bufferEnd = new Date(weekEnd);
+      bufferEnd.setDate(bufferEnd.getDate() + 2);
+      const fetchEndStr = getLocalISOString(bufferEnd);
 
       // --- BULLETPROOF FETCH ---
-      // 1. Fetch RAW shifts (No Joins). Guarantees data.
       const { data: rawShifts, error: shiftError } = await supabase
         .from('shifts')
         .select('*') 
         .gte('start_time', weekStart)
-        .lt('start_time', weekEndStr);
+        .lt('start_time', fetchEndStr); // Using the buffered end date
 
       if (shiftError) console.error("Shift Error:", shiftError);
       
@@ -127,7 +130,8 @@ function OverviewContent() {
   // --- COLOR LOGIC ---
   const getShiftStyle = (shift) => {
     if (!shift.user_id) {
-       return 'bg-red-50 border-2 border-dashed border-red-400 text-red-900';
+       // CHANGED: Red -> Navy Blue
+       return 'bg-blue-50 border-2 border-dashed border-blue-400 text-blue-900';
     }
 
     const role = shift.profiles?.role?.trim();
@@ -184,18 +188,18 @@ function OverviewContent() {
 
       {/* MASTER GRID */}
       <div className="flex-1 overflow-auto bg-white relative">
-        <div className="min-w-[1200px]"> 
+        <div className="max-w-[1800px] mx-auto mt-4"> 
           <table className="w-full text-left border-collapse">
             <thead>
               <tr>
-                <th className="p-4 border-b border-r border-gray-200 bg-white sticky left-0 top-0 z-50 w-40 text-xs font-extrabold text-black uppercase tracking-widest shadow-[4px_4px_10px_-4px_rgba(0,0,0,0.1)]">
+                <th className="p-4 border-b border-t border-r border-l border-gray-200 bg-white sticky left-0 top-0 z-50 w-40 text-xs font-extrabold text-black uppercase tracking-widest shadow-[4px_4px_10px_-4px_rgba(0,0,0,0.1)]">
                   Store Location
                 </th>
                 
                 {weekDays.map((day) => {
                    const isToday = day.isoDate === todayIso;
                    return (
-                    <th key={day.isoDate} className={`p-3 border-b border-r border-gray-200 text-center min-w-[140px] sticky top-0 z-40 ${isToday ? 'bg-blue-600 text-white' : 'bg-black text-white'}`}>
+                    <th key={day.isoDate} className={`p-3 border-b border-t border-r border-gray-200 text-center min-w-[140px] sticky top-0 z-40 ${isToday ? 'bg-blue-600 text-white' : 'bg-black text-white'}`}>
                       <div className={`text-xs font-extrabold tracking-widest uppercase mb-1 ${isToday ? 'text-blue-100' : 'text-gray-400'}`}>
                         {day.shortName}
                       </div>
@@ -213,7 +217,7 @@ function OverviewContent() {
 
                 return (
                   <tr key={store.id} className="group transition-colors hover:bg-gray-50">
-                    <td className="p-4 border-b border-r border-gray-200 bg-white sticky left-0 z-20 group-hover:bg-gray-50 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)] transition-colors">
+                    <td className="p-4 border-b border-r border-l border-gray-200 bg-white sticky left-0 z-20 group-hover:bg-gray-50 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)] transition-colors">
                       <div className="flex items-center gap-3">
                         <div className={`w-2.5 h-2.5 rounded-full ${rowDotColor} flex-shrink-0`}></div>
                         <Link href={`/store/${store.id}`} className="font-bold text-sm text-gray-900 uppercase tracking-wide hover:text-black hover:underline truncate">
@@ -223,8 +227,7 @@ function OverviewContent() {
                     </td>
 
                     {weekDays.map(day => {
-                      // --- UPDATED FILTER LOGIC ---
-                      // We do NOT use startsWith. We convert to Local Date Object and compare.
+                      // --- FILTER LOGIC ---
                       const dayShifts = shifts.filter(s => {
                          const shiftDate = new Date(s.start_time);
                          const shiftIso = getLocalISOString(shiftDate);
@@ -259,7 +262,8 @@ function OverviewContent() {
                                   >
                                     <div className="font-bold uppercase tracking-wide truncate w-full flex items-center gap-1">
                                       {isOpenShift ? (
-                                        <span className="text-red-700 font-extrabold tracking-widest text-[10px]">
+                                        // CHANGED: Red -> Navy Blue
+                                        <span className="text-blue-700 font-extrabold tracking-widest text-[10px]">
                                           ● OPEN
                                         </span>
                                       ) : (
@@ -279,7 +283,8 @@ function OverviewContent() {
                                     </div>
 
                                     {shift?.note && (
-                                       <div className={`mt-1 text-[9px] font-semibold italic border-t pt-0.5 leading-tight break-words ${isOpenShift ? 'text-red-800 border-red-200' : 'text-gray-500 border-gray-200/50'}`}>
+                                       // CHANGED: Red -> Navy Blue
+                                       <div className={`mt-1 text-[9px] font-semibold italic border-t pt-0.5 leading-tight break-words ${isOpenShift ? 'text-blue-800 border-blue-200' : 'text-gray-500 border-gray-200/50'}`}>
                                          {shift.note}
                                        </div>
                                     )}
