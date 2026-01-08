@@ -30,7 +30,8 @@ export default function EditShiftModal({ shift, onClose, weekDays }) {
     user_id: shift.user_id || shift.profile_id, 
     date: startObj.toISOString().split('T')[0], // YYYY-MM-DD
     start_time: toTimeStr(startObj),
-    end_time: toTimeStr(endObj)
+    end_time: toTimeStr(endObj),
+    note: shift.note || '' // <--- ADDED: Initialize note
   });
 
   // 2. GET STAFF LIST
@@ -96,7 +97,8 @@ export default function EditShiftModal({ shift, onClose, weekDays }) {
       .update({
         user_id: formData.user_id,
         start_time: startIso,
-        end_time: endIso
+        end_time: endIso,
+        note: formData.note // <--- ADDED: Save the note to DB
       })
       .eq('id', shift.id);
 
@@ -200,6 +202,20 @@ export default function EditShiftModal({ shift, onClose, weekDays }) {
                 onChange={e => setFormData({...formData, end_time: e.target.value})}
               />
             </div>
+          </div>
+
+          {/* ADDED: NOTES SECTION */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">
+              Shift Note (Optional)
+            </label>
+            <textarea
+              value={formData.note}
+              onChange={(e) => setFormData({...formData, note: e.target.value})}
+              placeholder="e.g. Bring keys, Deep clean station..."
+              rows={3}
+              className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm p-3 focus:ring-black focus:border-black rounded-none outline-none resize-none"
+            />
           </div>
 
           {/* BUTTONS */}
