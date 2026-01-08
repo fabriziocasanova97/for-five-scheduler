@@ -19,6 +19,7 @@ const supabase = createClient(
 );
 
 // --- HELPER: FORCE LOCAL DATE STRING (YYYY-MM-DD) ---
+// This ensures we compare apples to apples (Local Time vs Local Column)
 const getLocalISOString = (date: Date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -83,40 +84,62 @@ function OverviewContent() {
       weekEnd.setDate(weekEnd.getDate() + 1);
       const weekEndStr = getLocalISOString(weekEnd);
 
-      // FIX: Reverted to the exact syntax that works on the Store Page
-      const { data: shiftsData } = await supabase
+      // --- BULLETPROOF FETCH ---
+      // 1. Fetch RAW shifts (No Joins). Guarantees data.
+      const { data: rawShifts, error: shiftError } = await supabase
         .from('shifts')
-        .select('*, profiles ( full_name, role )')
+        .select('*') 
         .gte('start_time', weekStart)
         .lt('start_time', weekEndStr);
+
+      if (shiftError) console.error("Shift Error:", shiftError);
       
-      setShifts(shiftsData || []);
+      const shiftsFound = rawShifts || [];
+
+      // 2. Fetch Profiles separately
+      const userIds = [...new Set(shiftsFound.map(s => s.user_id).filter(id => id))];
+      let profilesMap = {};
+      
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, full_name, role')
+          .in('id', userIds);
+          
+        profilesData?.forEach(p => {
+          profilesMap[p.id] = p;
+        });
+      }
+
+      // 3. Combine
+      const finalShifts = shiftsFound.map(shift => ({
+        ...shift,
+        profiles: shift.user_id ? profilesMap[shift.user_id] : null
+      }));
+      
+      setShifts(finalShifts);
       setLoading(false);
     };
 
     fetchData();
   }, [queryDate]);
 
-  // --- COLOR LOGIC (White BG + Bold Borders + No Shadow) ---
+  // --- COLOR LOGIC ---
   const getShiftStyle = (shift) => {
+    if (!shift.user_id) {
+       return 'bg-red-50 border-2 border-dashed border-red-400 text-red-900';
+    }
+
     const role = shift.profiles?.role?.trim();
     const isManager = role === 'Manager' || role === 'Operations';
 
-    // Manager -> Purple Border
-    if (isManager) {
-      return 'bg-white border-2 border-purple-600 text-gray-900';
-    }
+    if (isManager) return 'bg-white border-2 border-purple-600 text-gray-900';
 
     const dateObj = new Date(shift.start_time);
     const hour = dateObj.getHours(); 
 
-    // Opener -> Emerald Border
     if (hour < 7) return 'bg-white border-2 border-emerald-500 text-gray-900'; 
-    
-    // Morning -> Blue Border
     if (hour < 10) return 'bg-white border-2 border-blue-500 text-gray-900'; 
-    
-    // Closer -> Orange Border
     return 'bg-white border-2 border-orange-500 text-gray-900'; 
   };
 
@@ -124,14 +147,12 @@ function OverviewContent() {
   if (!authorized) return <div className="p-12 text-center text-red-600 font-bold uppercase tracking-widest">🚫 Access Denied</div>;
 
   return (
-    // UPDATED: h-screen and overflow-hidden to lock viewport
     <div className="h-screen overflow-hidden bg-white flex flex-col font-sans text-gray-900">
       
-      {/* HEADER SECTION - UPDATED: Removed sticky, added z-50 relative */}
+      {/* HEADER SECTION */}
       <div className="bg-white border-b border-gray-200 px-6 py-6 shadow-sm flex-shrink-0 z-50 relative">
         <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-end max-w-[1800px] mx-auto">
           
-          {/* Top Left: Back Link + Title */}
           <div className="flex flex-col gap-1">
             <Link href="/" className="text-xs font-bold text-gray-400 hover:text-black uppercase tracking-widest mb-2 transition-colors">
               ← Back to Locations
@@ -140,12 +161,8 @@ function OverviewContent() {
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">All Locations Overview</p>
           </div>
           
-          {/* Week Controls */}
           <div className="flex items-center gap-6">
-            <Link 
-              href={`/overview?date=${prevDateStr}`} 
-              className="p-2 group"
-            >
+            <Link href={`/overview?date=${prevDateStr}`} className="p-2 group">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-gray-400 group-hover:text-black transition-colors">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
               </svg>
@@ -155,10 +172,7 @@ function OverviewContent() {
               Week of {weekDays[0].isoDate.slice(5)}
             </span>
 
-            <Link 
-              href={`/overview?date=${nextDateStr}`} 
-              className="p-2 group"
-            >
+            <Link href={`/overview?date=${nextDateStr}`} className="p-2 group">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-gray-400 group-hover:text-black transition-colors">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
               </svg>
@@ -168,21 +182,18 @@ function OverviewContent() {
         </div>
       </div>
 
-      {/* MASTER GRID - UPDATED: overflow-auto here allows scrolling the table only */}
+      {/* MASTER GRID */}
       <div className="flex-1 overflow-auto bg-white relative">
         <div className="min-w-[1200px]"> 
           <table className="w-full text-left border-collapse">
             <thead>
               <tr>
-                {/* Sticky Store Column Header */}
                 <th className="p-4 border-b border-r border-gray-200 bg-white sticky left-0 top-0 z-50 w-40 text-xs font-extrabold text-black uppercase tracking-widest shadow-[4px_4px_10px_-4px_rgba(0,0,0,0.1)]">
                   Store Location
                 </th>
                 
-                {/* Days Headers */}
-                {weekDays.map((day, i) => {
+                {weekDays.map((day) => {
                    const isToday = day.isoDate === todayIso;
-                   
                    return (
                     <th key={day.isoDate} className={`p-3 border-b border-r border-gray-200 text-center min-w-[140px] sticky top-0 z-40 ${isToday ? 'bg-blue-600 text-white' : 'bg-black text-white'}`}>
                       <div className={`text-xs font-extrabold tracking-widest uppercase mb-1 ${isToday ? 'text-blue-100' : 'text-gray-400'}`}>
@@ -202,7 +213,6 @@ function OverviewContent() {
 
                 return (
                   <tr key={store.id} className="group transition-colors hover:bg-gray-50">
-                    {/* Sticky Store Name Cell */}
                     <td className="p-4 border-b border-r border-gray-200 bg-white sticky left-0 z-20 group-hover:bg-gray-50 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)] transition-colors">
                       <div className="flex items-center gap-3">
                         <div className={`w-2.5 h-2.5 rounded-full ${rowDotColor} flex-shrink-0`}></div>
@@ -212,11 +222,16 @@ function OverviewContent() {
                       </div>
                     </td>
 
-                    {/* Shifts Cells */}
                     {weekDays.map(day => {
-                      const dayShifts = shifts.filter(s => s.store_id === store.id && s.start_time.startsWith(day.isoDate));
-                      dayShifts.sort((a, b) => a.start_time.localeCompare(b.start_time));
+                      // --- UPDATED FILTER LOGIC ---
+                      // We do NOT use startsWith. We convert to Local Date Object and compare.
+                      const dayShifts = shifts.filter(s => {
+                         const shiftDate = new Date(s.start_time);
+                         const shiftIso = getLocalISOString(shiftDate);
+                         return s.store_id === store.id && shiftIso === day.isoDate;
+                      });
                       
+                      dayShifts.sort((a, b) => a.start_time.localeCompare(b.start_time));
                       const isToday = day.isoDate === todayIso;
 
                       return (
@@ -233,6 +248,7 @@ function OverviewContent() {
                                 const start = new Date(shift.start_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
                                 const end = new Date(shift.end_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
                                 
+                                const isOpenShift = !shift.user_id;
                                 const cardStyle = getShiftStyle(shift);
 
                                 return (
@@ -242,21 +258,28 @@ function OverviewContent() {
                                     className={`text-xs p-2 rounded flex flex-col hover:brightness-95 transition-all cursor-pointer ${cardStyle}`}
                                   >
                                     <div className="font-bold uppercase tracking-wide truncate w-full flex items-center gap-1">
-                                      {/* SVG STAR */}
-                                      {isManager && (
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-purple-600 flex-shrink-0">
-                                          <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
-                                        </svg>
+                                      {isOpenShift ? (
+                                        <span className="text-red-700 font-extrabold tracking-widest text-[10px]">
+                                          ● OPEN
+                                        </span>
+                                      ) : (
+                                        <>
+                                          {isManager && (
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-purple-600 flex-shrink-0">
+                                              <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+                                            </svg>
+                                          )}
+                                          {shift.profiles?.full_name?.split(' ')[0]}
+                                        </>
                                       )}
-                                      {shift.profiles?.full_name?.split(' ')[0]}
                                     </div>
+
                                     <div className="text-[10px] font-medium opacity-80 mt-0.5 tracking-tight">
                                       {start} - {end}
                                     </div>
 
-                                    {/* NOTE DISPLAY with Safety Check */}
                                     {shift?.note && (
-                                       <div className="mt-1 text-[9px] font-semibold text-gray-500 italic border-t border-gray-200/50 pt-0.5 leading-tight break-words">
+                                       <div className={`mt-1 text-[9px] font-semibold italic border-t pt-0.5 leading-tight break-words ${isOpenShift ? 'text-red-800 border-red-200' : 'text-gray-500 border-gray-200/50'}`}>
                                          {shift.note}
                                        </div>
                                     )}

@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useEffect, useState, Suspense } from 'react';
 import { isBoss } from '@/app/utils/roles';
+import OpenShiftsBoard from './components/OpenShiftsBoard'; // <--- NEW IMPORT
 
 // 1. Initialize Supabase
 const supabase = createClient(
@@ -206,6 +207,10 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
       {/* MAIN CONTENT */}
       <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         
+        {/* NEW: OPEN SHIFTS WIDGET */}
+        {/* This will automatically hide itself if there are no open shifts */}
+        <OpenShiftsBoard />
+
         {/* EMPTY STATE - For new hires with no shifts yet */}
         {stores.length === 0 && !loading && (
           <div className="text-center py-12">

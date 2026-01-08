@@ -35,7 +35,7 @@ export default function AddShiftModal({
   const [date, setDate] = useState(preSelectedDate || (weekDays && weekDays[0]?.isoDate) || '');
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('17:00');
-  const [note, setNote] = useState(''); // NEW: Note State
+  const [note, setNote] = useState(''); 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -54,47 +54,47 @@ export default function AddShiftModal({
     const startObj = new Date(`${date}T${startTime}`);
     const endObj = new Date(`${date}T${endTime}`);
 
-    // 2. Validate
-    if (!employeeId) {
-      setError('Please select an employee.');
-      setLoading(false);
-      return;
-    }
+    // 1. Validation
+    // REMOVED check for employeeId to allow Open Shifts
+    
     if (endObj <= startObj) {
       setError('End time must be after start time.');
       setLoading(false);
       return;
     }
 
-    // 3. Convert to UTC Strings for Supabase
+    // 2. Convert to UTC Strings for Supabase
     const startIso = startObj.toISOString();
     const endIso = endObj.toISOString();
     // --- TIMEZONE FIX END ---
 
-    // --- STEP 4: CONFLICT DETECTION ---
-    try {
-      const { data: conflicts, error: conflictError } = await supabase
-        .from('shifts')
-        .select('*, stores(name)') 
-        .eq('user_id', employeeId)
-        .lt('start_time', endIso) 
-        .gt('end_time', startIso); 
+    // --- STEP 3: CONFLICT DETECTION ---
+    // Only check for conflicts if a specific human is selected
+    if (employeeId) {
+      try {
+        const { data: conflicts, error: conflictError } = await supabase
+          .from('shifts')
+          .select('*, stores(name)') 
+          .eq('user_id', employeeId)
+          .lt('start_time', endIso) 
+          .gt('end_time', startIso); 
 
-      if (conflictError) throw conflictError;
+        if (conflictError) throw conflictError;
 
-      if (conflicts && conflicts.length > 0) {
-        const conflict = conflicts[0];
-        const storeName = conflict.stores?.name || 'Unknown Location';
-        
-        const conflictStart = new Date(conflict.start_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
-        const conflictEnd = new Date(conflict.end_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
+        if (conflicts && conflicts.length > 0) {
+          const conflict = conflicts[0];
+          const storeName = conflict.stores?.name || 'Unknown Location';
+          
+          const conflictStart = new Date(conflict.start_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
+          const conflictEnd = new Date(conflict.end_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
 
-        setError(`CONFLICT: This person is already working at ${storeName} (${conflictStart} - ${conflictEnd}).`);
-        setLoading(false);
-        return; 
+          setError(`CONFLICT: This person is already working at ${storeName} (${conflictStart} - ${conflictEnd}).`);
+          setLoading(false);
+          return; 
+        }
+      } catch (err) {
+        console.error("Conflict check failed:", err);
       }
-    } catch (err) {
-      console.error("Conflict check failed:", err);
     }
     // --- END CONFLICT DETECTION ---
 
@@ -103,10 +103,10 @@ export default function AddShiftModal({
       .insert([
         {
           store_id: storeId,
-          user_id: employeeId, 
+          user_id: employeeId || null, // If empty string, save as NULL (Open Shift)
           start_time: startIso,
           end_time: endIso,
-          note: note.trim() || null, // NEW: Save the note
+          note: note.trim() || null,
         },
       ]);
 
@@ -158,10 +158,16 @@ export default function AddShiftModal({
             <select
               value={employeeId}
               onChange={(e) => setEmployeeId(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm p-3 focus:ring-black focus:border-black rounded-none outline-none appearance-none"
-              required
+              className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm p-3 focus:ring-black focus:border-black rounded-none outline-none appearance-none font-bold"
+              required={false}
             >
-              <option value="">-- Choose Employee --</option>
+              {/* NEW: Open Shift Option */}
+              <option value="" className="text-blue-600 font-extrabold">
+              OPEN SHIFT
+              </option>
+              
+              <option disabled>-------------------</option>
+
               {staffList.map((staff) => (
                 <option key={staff.id} value={staff.id}>
                   {staff.full_name}
@@ -217,7 +223,7 @@ export default function AddShiftModal({
             </div>
           </div>
 
-          {/* NEW: Note Input */}
+          {/* Note Input */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">
               Note (Optional)
@@ -226,7 +232,7 @@ export default function AddShiftModal({
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. Bring keys, Inventory check..."
+              placeholder="e.g. Bring keys, do inventory..."
               className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm p-3 focus:ring-black focus:border-black rounded-none outline-none"
             />
           </div>
@@ -245,7 +251,7 @@ export default function AddShiftModal({
               disabled={loading}
               className="flex-1 py-3 bg-black text-white font-bold uppercase tracking-widest text-xs hover:bg-gray-800 transition-colors disabled:opacity-50"
             >
-              {loading ? 'Checking...' : 'Save Shift'}
+              {loading ? 'Checking...' : (employeeId ? 'Save Shift' : 'Create Open Shift')}
             </button>
           </div>
 

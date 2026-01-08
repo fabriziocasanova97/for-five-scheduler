@@ -23,16 +23,21 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
     window.location.reload(); 
   };
 
-  // --- COLOR LOGIC (UPDATED: No Shadow, Just Bold Borders) ---
-  const getShiftStyle = (startTimeStr: string) => {
-    // 1. CHECK ROLE FIRST (Manager = Purple Border)
+  // --- STYLE LOGIC ---
+  const getShiftStyle = (shift) => {
+    // 1. OPEN SHIFT (No User) -> Red Dashed Border
+    if (!shift.user_id) {
+      return 'bg-red-50 border-2 border-dashed border-red-400 text-red-900';
+    }
+
+    // 2. CHECK ROLE (Manager = Purple Border)
     const role = shift.profiles?.role?.trim();
     if (role === 'Manager' || role === 'Operations') {
       return 'bg-white border-2 border-purple-600 text-gray-900';
     }
 
-    // 2. CHECK TIME
-    const date = new Date(startTimeStr);
+    // 3. CHECK TIME
+    const date = new Date(shift.start_time);
     const hour = date.getHours(); 
 
     // Openers (< 7:00am) -> Mint/Emerald Border
@@ -45,10 +50,11 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
     return 'bg-white border-2 border-orange-500 text-gray-900'; 
   };
 
-  const styleClass = getShiftStyle(shift.start_time);
+  const styleClass = getShiftStyle(shift);
   
   const role = shift.profiles?.role?.trim();
   const isManager = role === 'Manager' || role === 'Operations';
+  const isOpenShift = !shift.user_id;
 
   return (
     <>
@@ -82,15 +88,23 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
 
         {/* Name & Role */}
         <div className="font-bold text-sm flex items-center gap-1">
-          {isManager && (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-purple-600">
-              <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
-            </svg>
+          {/* If Open Shift, show 'OPEN SHIFT' label */}
+          {isOpenShift ? (
+            <span className="text-red-600 uppercase tracking-widest text-[10px]">
+              ● Open Shift
+            </span>
+          ) : (
+            <>
+              {isManager && (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-purple-600">
+                  <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+                </svg>
+              )}
+              <span className="truncate">
+                {shift.profiles?.full_name?.split(' ')[0] || 'Unknown'}
+              </span>
+            </>
           )}
-          
-          <span className="truncate">
-            {shift.profiles?.full_name?.split(' ')[0] || 'Unknown'}
-          </span>
         </div>
 
         {/* Time */}
@@ -104,7 +118,7 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
 
         {/* NEW: Note Display */}
         {shift.note && (
-           <div className="mt-1 text-[10px] font-semibold text-gray-500 italic border-t border-gray-200/50 pt-1 leading-tight break-words">
+           <div className={`mt-1 text-[10px] font-semibold italic border-t pt-1 leading-tight break-words ${isOpenShift ? 'text-red-800 border-red-200' : 'text-gray-500 border-gray-200/50'}`}>
              "{shift.note}"
            </div>
         )}
