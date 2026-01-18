@@ -3,7 +3,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import EditShiftModal from './EditShiftModal';
 
 const supabase = createClient(
@@ -14,6 +14,19 @@ const supabase = createClient(
 export default function ShiftCard({ shift, amIBoss, weekDays }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  
+  // --- NEW STATE FOR SWAPS ---
+  const [myId, setMyId] = useState(null);
+  const [processing, setProcessing] = useState(false);
+
+  // 1. GET CURRENT USER (To check ownership)
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setMyId(user.id);
+    };
+    getUser();
+  }, []);
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this shift?')) return;
@@ -23,31 +36,44 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
     window.location.reload(); 
   };
 
+  // --- SWAP HANDLERS ---
+  const handleOfferSwap = async () => {
+    if (!confirm("Offer this shift for swap? It will become visible for others to pick up.")) return;
+    setProcessing(true);
+    
+    const { error } = await supabase
+      .from('shifts')
+      .update({ swap_status: 'offered' })
+      .eq('id', shift.id);
+
+    if (error) alert(error.message);
+    else window.location.reload();
+  };
+
+  const handleCancelOffer = async () => {
+    setProcessing(true);
+    const { error } = await supabase
+      .from('shifts')
+      .update({ swap_status: 'none', swap_candidate_id: null }) // Reset everything
+      .eq('id', shift.id);
+
+    if (error) alert(error.message);
+    else window.location.reload();
+  };
+
   // --- STYLE LOGIC ---
   const getShiftStyle = (shift) => {
-    // 1. OPEN SHIFT (No User) -> Navy Blue Dashed Border
-    // CHANGED: bg-red-50 -> bg-blue-50, border-red-400 -> border-blue-400, text-red-900 -> text-blue-900
     if (!shift.user_id) {
       return 'bg-blue-50 border-2 border-dashed border-blue-400 text-blue-900';
     }
-
-    // 2. CHECK ROLE (Manager = Purple Border)
     const role = shift.profiles?.role?.trim();
     if (role === 'Manager' || role === 'Operations') {
       return 'bg-white border-2 border-purple-600 text-gray-900';
     }
-
-    // 3. CHECK TIME
     const date = new Date(shift.start_time);
     const hour = date.getHours(); 
-
-    // Openers (< 7:00am) -> Mint/Emerald Border
     if (hour < 7) return 'bg-white border-2 border-emerald-500 text-gray-900'; 
-    
-    // Morning (< 10:00am) -> Blue Border
     if (hour < 10) return 'bg-white border-2 border-blue-500 text-gray-900'; 
-    
-    // Closers (>= 10:00am) -> Orange Border
     return 'bg-white border-2 border-orange-500 text-gray-900'; 
   };
 
@@ -56,16 +82,19 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
   const role = shift.profiles?.role?.trim();
   const isManager = role === 'Manager' || role === 'Operations';
   const isOpenShift = !shift.user_id;
+  
+  // --- SWAP HELPERS ---
+  const isMyShift = myId === shift.user_id;
+  const isOffered = shift.swap_status === 'offered';
+  const isPending = shift.swap_status === 'pending_approval';
 
   return (
     <>
       <div className={`p-2 rounded mb-2 relative group transition-all ${styleClass}`}>
         
-        {/* BOSS CONTROL PANEL */}
+        {/* BOSS CONTROL PANEL (Pencil/Trash) */}
         {amIBoss && (
           <div className="absolute top-1 right-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-1 bg-white/90 border border-gray-200 rounded px-1 backdrop-blur-sm z-10">
-             
-             {/* EDIT BUTTON */}
              <button 
                onClick={() => setIsEditing(true)} 
                className="text-gray-500 hover:text-blue-600 transition-colors p-1 hover:scale-110"
@@ -74,8 +103,6 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                </svg>
              </button>
-             
-             {/* DELETE BUTTON */}
              <button 
                onClick={handleDelete} 
                className="text-gray-500 hover:text-red-600 transition-colors p-1 hover:scale-110"
@@ -87,11 +114,42 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
           </div>
         )}
 
+        {/* OWNER SWAP CONTROLS (Icons) */}
+        {!amIBoss && isMyShift && (
+          <div className="absolute top-1 right-1 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-1 bg-white/90 border border-gray-200 rounded px-1 backdrop-blur-sm">
+             {/* If NO swap active, show OFFER icon (Cycle Arrows) */}
+             {!isOffered && !isPending && (
+               <button 
+                 onClick={handleOfferSwap}
+                 disabled={processing}
+                 title="Offer Shift for Swap"
+                 className="text-gray-500 hover:text-amber-600 transition-colors p-1 hover:scale-110 disabled:opacity-50"
+               >
+                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                 </svg>
+               </button>
+             )}
+
+             {/* If OFFERED, show CANCEL icon (X mark) */}
+             {isOffered && (
+               <button 
+                 onClick={handleCancelOffer}
+                 disabled={processing}
+                 title="Cancel Offer"
+                 className="text-amber-600 hover:text-red-600 transition-colors p-1 hover:scale-110 disabled:opacity-50"
+               >
+                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                 </svg>
+               </button>
+             )}
+          </div>
+        )}
+
         {/* Name & Role */}
         <div className="font-bold text-sm flex items-center gap-1">
-          {/* If Open Shift, show 'OPEN SHIFT' label */}
           {isOpenShift ? (
-            // CHANGED: text-red-600 -> text-blue-700
             <span className="text-blue-700 uppercase tracking-widest text-[10px]">
               ● Open Shift
             </span>
@@ -109,6 +167,23 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
           )}
         </div>
 
+        {/* SWAP STATUS INDICATORS (UPDATED) */}
+        {isOffered && (
+          <div className="mb-1">
+             <span className="text-[10px] font-extrabold text-amber-600 uppercase tracking-widest">
+               ● Offered
+             </span>
+          </div>
+        )}
+        
+        {isPending && (
+          <div className="mb-1">
+             <span className="text-[10px] font-extrabold text-purple-600 uppercase tracking-widest">
+               ● Pending Approval
+             </span>
+          </div>
+        )}
+
         {/* Time */}
         <div 
           className="text-xs opacity-90 font-medium"
@@ -120,7 +195,6 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
 
         {/* NEW: Note Display */}
         {shift.note && (
-           // CHANGED: text-red-800 border-red-200 -> text-blue-800 border-blue-200
            <div className={`mt-1 text-[12px] font-semibold italic border-t pt-1 leading-tight break-words ${isOpenShift ? 'text-blue-800 border-blue-200' : 'text-gray-500 border-gray-200/50'}`}>
              "{shift.note}"
            </div>

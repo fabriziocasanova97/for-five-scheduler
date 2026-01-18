@@ -140,8 +140,10 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-white">Loading...</div>;
 
-  const allowedRoles = ['operations', 'manager'];
-  const canNavigate = allowedRoles.includes(currentUserRole.toLowerCase());
+  // CHANGED: Force navigation to be enabled for everyone for testing
+  // const allowedRoles = ['operations', 'manager'];
+  // const canNavigate = allowedRoles.includes(currentUserRole.toLowerCase());
+  const canNavigate = true; 
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
