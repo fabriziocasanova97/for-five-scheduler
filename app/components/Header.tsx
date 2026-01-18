@@ -17,32 +17,57 @@ export default function Header() {
   const [user, setUser] = useState(null);
   const [isManager, setIsManager] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false); // To prevent hydration mismatch
 
   useEffect(() => {
+    setMounted(true);
+
     const getUser = async () => {
+      // 1. Get initial User
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUser(user);
-        
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-          
-        const role = profile?.role?.trim();
-        if (role === 'Manager' || role === 'Operations') {
-          setIsManager(true);
-        }
+        checkRole(user.id);
       }
     };
+
     getUser();
-  }, []);
+
+    // 2. Listen for Auth Changes (Login/Logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setIsManager(false);
+        router.push('/'); // Go back to Login Screen
+      } else if (session?.user) {
+        setUser(session.user);
+        checkRole(session.user.id);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [router]);
+
+  const checkRole = async (userId) => {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+      
+    const role = profile?.role?.trim();
+    if (role === 'Manager' || role === 'Operations') {
+      setIsManager(true);
+    }
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    router.push('/login');
+    // The onAuthStateChange listener above will handle the redirect and UI update
   };
+
+  // --- THE FIX: IF NO USER, SHOW NOTHING ---
+  if (!mounted || !user) return null;
 
   return (
     <header className="bg-black text-white py-4 sticky top-0 z-50 shadow-md">
@@ -60,9 +85,12 @@ export default function Header() {
             Locations
           </Link>
           
-          {/* NEW MARKETPLACE LINK */}
           <Link href="/marketplace" className="hover:text-gray-300 transition-colors">
             Shift Board
+          </Link>
+
+          <Link href="/availability" className="hover:text-gray-300 transition-colors">
+            Availability
           </Link>
 
           {isManager && (
@@ -123,7 +151,9 @@ export default function Header() {
       {isMenuOpen && (
         <div className="md:hidden absolute top-full left-0 w-full bg-black border-t border-gray-800 p-4 flex flex-col gap-4 shadow-xl">
            <Link href="/" onClick={() => setIsMenuOpen(false)} className="text-sm font-bold uppercase tracking-widest">Locations</Link>
-           <Link href="/marketplace" onClick={() => setIsMenuOpen(false)} className="text-sm font-bold uppercase tracking-widest">Marketplace</Link>
+           <Link href="/marketplace" onClick={() => setIsMenuOpen(false)} className="text-sm font-bold uppercase tracking-widest">Shift Board</Link>
+           <Link href="/availability" onClick={() => setIsMenuOpen(false)} className="text-sm font-bold uppercase tracking-widest">Availability</Link>
+           
            {isManager && <Link href="/overview" onClick={() => setIsMenuOpen(false)} className="text-sm font-bold uppercase tracking-widest">Master View</Link>}
            <button onClick={handleSignOut} className="text-left text-sm font-bold uppercase tracking-widest text-red-500">Sign Out</button>
         </div>
