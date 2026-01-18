@@ -17,10 +17,39 @@ const getStoreImage = (storeName: string) => {
   return `/stores/${cleanName}.jpg`;
 };
 
+// --- SHIFT VISIBILITY LOGIC (SUNDAY 4PM RULE) ---
+const isShiftVisible = (shiftIsoDate: string, amIBoss: boolean) => {
+  if (amIBoss) return true; // Managers see everything
+
+  const shiftDate = new Date(shiftIsoDate);
+  const now = new Date();
+
+  // Calculate "Start of Next Week" (Next Monday)
+  const currentDay = now.getDay(); // 0=Sun, 1=Mon...
+  const distanceToMonday = currentDay === 0 ? 6 : currentDay - 1;
+  const thisMonday = new Date(now);
+  thisMonday.setDate(now.getDate() - distanceToMonday);
+  thisMonday.setHours(0, 0, 0, 0);
+
+  const nextMonday = new Date(thisMonday);
+  nextMonday.setDate(thisMonday.getDate() + 7);
+
+  // If shift is before next Monday (e.g. today or tomorrow), show it
+  if (shiftDate < nextMonday) return true;
+
+  // If shift is NEXT week, check if we passed Sunday 4 PM
+  const thisSundayCutoff = new Date(nextMonday);
+  thisSundayCutoff.setDate(nextMonday.getDate() - 1); // Sunday
+  thisSundayCutoff.setHours(16, 0, 0, 0); // 4 PM
+
+  return now >= thisSundayCutoff;
+};
+
 // --- COMPONENT: LOGIN SCREEN ---
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false); 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -46,12 +75,12 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
     <div className="min-h-screen flex items-center justify-center bg-white px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h1 className="text-4xl font-extrabold text-black uppercase tracking-widest">
-            For Five
-          </h1>
-          <p className="mt-2 text-sm text-gray-500 uppercase tracking-wide">
-            Schedule Management
-          </p>
+          {/* UPDATED HEADER: Clickable Link & Removed Subtitle */}
+          <Link href="/">
+            <h1 className="text-4xl font-extrabold text-black uppercase tracking-widest text-center hover:opacity-80 transition-opacity cursor-pointer">
+              For Five
+            </h1>
+          </Link>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
@@ -69,18 +98,39 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-            <div>
+            
+            {/* PASSWORD FIELD WITH TOGGLE */}
+            <div className="relative">
               <label htmlFor="password" className="sr-only">Password</label>
               <input
                 id="password"
                 name="password"
-                type="password"
+                type={showPassword ? "text" : "password"} 
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-black focus:border-black sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-black focus:border-black sm:text-sm pr-10"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
+              {/* EYE ICON BUTTON */}
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-black focus:outline-none"
+              >
+                {showPassword ? (
+                  // Eye Open (Hide)
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                  </svg>
+                ) : (
+                  // Eye Closed (Show)
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                )}
+              </button>
             </div>
           </div>
 
@@ -126,9 +176,14 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
         .eq('user_id', user.id)
         .gt('start_time', now)
         .order('start_time', { ascending: true })
-        .limit(5);
+        .limit(10); // Fetch a few more to allow for filtering
 
-      setMyShifts(shiftsData || []);
+      // --- APPLY SUNDAY 4PM FILTER ---
+      const visibleShifts = (shiftsData || []).filter(shift => 
+        isShiftVisible(shift.start_time, bossStatus)
+      );
+
+      setMyShifts(visibleShifts.slice(0, 5));
 
       // 2. FETCH STORES (Filtered)
       if (bossStatus) {
@@ -140,13 +195,11 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
         setStores(allStores || []);
       } else {
         // Barista sees ONLY stores they have worked/will work at
-        // First, get all shifts ever for this user to find their stores
         const { data: userHistory } = await supabase
           .from('shifts')
           .select('store_id')
           .eq('user_id', user.id);
         
-        // Extract unique Store IDs
         const myStoreIds = [...new Set(userHistory?.map(s => s.store_id) || [])];
 
         if (myStoreIds.length > 0) {
@@ -185,11 +238,19 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
     <div className="min-h-screen bg-gray-50 pb-12">
       
       {/* --- SECTION 1: MY SCHEDULE --- */}
-      <div className="bg-white border-b border-gray-200 pt-8 pb-10 px-6">
-        <div className="max-w-7xl mx-auto">
+      <div className="bg-white border-b border-gray-200 pt-8 pb-10">
+        <div className="max-w-7xl mx-auto px-6">
+          
           <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
             My Schedule
           </h2>
+
+          {/* DRAFT MODE WARNING (Boss Only) */}
+          {amIBoss && (
+            <div className="mb-4 text-[10px] text-gray-400 uppercase tracking-wider font-bold">
+               * You see all shifts. Staff only see next week after Sun 4PM.
+            </div>
+          )}
 
           {/* NEXT UP CARD */}
           {nextShift ? (
@@ -212,7 +273,8 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
             </div>
           ) : (
              <div className="bg-gray-100 p-6 border border-gray-200 text-center mb-6">
-                <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">No upcoming shifts scheduled</p>
+                <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">No upcoming shifts visible</p>
+                <p className="text-[10px] text-gray-400 mt-1 uppercase">Next week releases Sunday @ 4PM</p>
              </div>
           )}
 
@@ -280,10 +342,16 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
 
               <div className="border-b border-gray-300 pb-2 group-hover:border-black transition-colors duration-300">
                 <div className="flex justify-between items-end">
-                  <h3 className="text-xl font-bold text-gray-900 uppercase tracking-wider truncate group-hover:text-black">
-                    {store.name}
-                  </h3>
-                  <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-lg">
+                  <div className="overflow-hidden">
+                    <h3 className="text-xl font-bold text-gray-900 uppercase tracking-wider truncate group-hover:text-black leading-none">
+                      {store.name}
+                    </h3>
+                    {/* ADDED ADDRESS FIELD */}
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1 truncate">
+                       {store.address}
+                    </p>
+                  </div>
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-lg ml-4 mb-0.5">
                     →
                   </span>
                 </div>

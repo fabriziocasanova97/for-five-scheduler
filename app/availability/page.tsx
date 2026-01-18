@@ -80,6 +80,14 @@ export default function AvailabilityPage() {
     ));
   };
 
+  // --- SET ALL DAY FUNCTION ---
+  const handleSetAllDay = (id) => {
+    if (isLocked) return;
+    setItems(prev => prev.map(item => 
+      item.id === id ? { ...item, start_time: '00:00', end_time: '23:59' } : item
+    ));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     
@@ -142,7 +150,7 @@ export default function AvailabilityPage() {
           </div>
         )}
 
-        {/* --- NEW: GUIDELINES SECTION --- */}
+        {/* --- GUIDELINES SECTION --- */}
         {!amIBoss && (
           <div className="mt-8 p-6 bg-white border border-gray-200 shadow-sm">
              <h3 className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mb-4 border-b border-gray-100 pb-2">
@@ -188,59 +196,83 @@ export default function AvailabilityPage() {
       <main className="max-w-3xl mx-auto py-6 px-6">
         <div className="bg-white shadow-sm border border-gray-200">
           <ul className="divide-y divide-gray-100">
-            {items.map((item) => (
-              <li key={item.id} className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
-                
-                {/* Day Name & Toggle */}
-                <div className="flex items-center justify-between sm:justify-start sm:w-48 gap-4">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      disabled={isLocked}
-                      checked={item.is_available}
-                      onChange={(e) => handleChange(item.id, 'is_available', e.target.checked)}
-                      className="h-5 w-5 text-black focus:ring-black border-gray-300 rounded-none cursor-pointer disabled:opacity-50"
-                    />
-                    <span className={`text-sm font-bold uppercase tracking-widest ${item.is_available ? 'text-gray-900' : 'text-gray-400 line-through'}`}>
-                      {item.day_of_week}
-                    </span>
+            {items.map((item) => {
+              // CHECK IF FULL DAY IS SELECTED
+              const isAllDay = item.start_time === '00:00' && item.end_time === '23:59';
+              
+              return (
+                <li 
+                  key={item.id} 
+                  className={`p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors ${item.is_available ? 'bg-white hover:bg-gray-50' : 'bg-gray-50'}`}
+                >
+                  
+                  {/* Day Name & Toggle */}
+                  <div className="flex items-center justify-between sm:justify-start sm:w-48 gap-4">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        disabled={isLocked}
+                        checked={item.is_available}
+                        onChange={(e) => handleChange(item.id, 'is_available', e.target.checked)}
+                        className="h-5 w-5 text-black focus:ring-black border-gray-300 rounded-none cursor-pointer disabled:opacity-50"
+                      />
+                      <span className={`text-sm font-bold uppercase tracking-widest ${item.is_available ? 'text-gray-900' : 'text-gray-400 line-through'}`}>
+                        {item.day_of_week}
+                      </span>
+                    </div>
                   </div>
-                </div>
 
-                {/* Time Inputs */}
-                {item.is_available ? (
-                  <div className="flex items-center gap-2">
-                    <div className="flex flex-col">
-                      <label className="text-[10px] text-gray-400 uppercase font-bold mb-1">Start</label>
-                      <input
-                        type="time"
+                  {/* Time Inputs */}
+                  {item.is_available ? (
+                    <div className="flex items-end gap-3 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <div className="flex flex-col">
+                          <label className="text-[9px] text-gray-400 uppercase font-bold mb-1">Start</label>
+                          <input
+                            type="time"
+                            disabled={isLocked}
+                            value={item.start_time || ''}
+                            onChange={(e) => handleChange(item.id, 'start_time', e.target.value)}
+                            className="block w-28 text-sm border-gray-300 rounded-none focus:ring-black focus:border-black p-2 bg-white shadow-sm"
+                          />
+                        </div>
+                        <span className="text-gray-300 mb-2">-</span>
+                        <div className="flex flex-col">
+                          <label className="text-[9px] text-gray-400 uppercase font-bold mb-1">End</label>
+                          <input
+                            type="time"
+                            disabled={isLocked}
+                            value={item.end_time || ''}
+                            onChange={(e) => handleChange(item.id, 'end_time', e.target.value)}
+                            className="block w-28 text-sm border-gray-300 rounded-none focus:ring-black focus:border-black p-2 bg-white shadow-sm"
+                          />
+                        </div>
+                      </div>
+
+                      {/* NEW: ENHANCED ALL DAY BUTTON */}
+                      <button
+                        onClick={() => handleSetAllDay(item.id)}
                         disabled={isLocked}
-                        value={item.start_time || ''}
-                        onChange={(e) => handleChange(item.id, 'start_time', e.target.value)}
-                        className="block w-32 sm:text-sm border-gray-300 rounded-none focus:ring-black focus:border-black p-2 bg-gray-50"
-                      />
+                        className={`mb-[1px] px-3 py-2 text-[10px] font-bold uppercase tracking-wider border transition-all h-[38px] ${
+                          isAllDay 
+                            ? 'bg-black text-white border-black' 
+                            : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
+                        }`}
+                        title="Set to 00:00 - 23:59"
+                      >
+                        {isAllDay ? 'All Day ✓' : 'All Day'}
+                      </button>
                     </div>
-                    <span className="text-gray-400 mt-5">-</span>
-                    <div className="flex flex-col">
-                      <label className="text-[10px] text-gray-400 uppercase font-bold mb-1">End</label>
-                      <input
-                        type="time"
-                        disabled={isLocked}
-                        value={item.end_time || ''}
-                        onChange={(e) => handleChange(item.id, 'end_time', e.target.value)}
-                        className="block w-32 sm:text-sm border-gray-300 rounded-none focus:ring-black focus:border-black p-2 bg-gray-50"
-                      />
+                  ) : (
+                    <div className="flex-1 flex justify-start sm:justify-end">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border border-gray-200 bg-white px-3 py-1">
+                        Unavailable
+                      </span>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex-1 flex justify-end sm:justify-center">
-                    <span className="text-xs font-bold text-gray-300 uppercase tracking-widest bg-gray-100 px-3 py-1 rounded-none">
-                      Unavailable
-                    </span>
-                  </div>
-                )}
-              </li>
-            ))}
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
 

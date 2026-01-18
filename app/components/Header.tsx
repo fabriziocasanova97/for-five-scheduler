@@ -75,7 +75,7 @@ export default function Header() {
         
         {/* LOGO */}
         <Link href="/" className="text-xl font-extrabold uppercase tracking-[0.2em] hover:opacity-80 transition-opacity">
-          For Five <span className="text-gray-500 text-xs tracking-normal normal-case align-middle ml-2">Scheduling</span>
+          For Five <span className="text-gray-500 text-xs tracking-normal normal-case align-middle ml-2"></span>
         </Link>
 
         {/* DESKTOP NAV */}
