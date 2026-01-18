@@ -83,7 +83,6 @@ function OverviewContent() {
       weekEnd.setDate(weekEnd.getDate() + 1);
       
       // FIX: Add 2 extra buffer days to the fetch query.
-      // This ensures we catch Sunday night shifts that exist in UTC 'Monday morning'.
       const bufferEnd = new Date(weekEnd);
       bufferEnd.setDate(bufferEnd.getDate() + 2);
       const fetchEndStr = getLocalISOString(bufferEnd);
@@ -93,7 +92,7 @@ function OverviewContent() {
         .from('shifts')
         .select('*') 
         .gte('start_time', weekStart)
-        .lt('start_time', fetchEndStr); // Using the buffered end date
+        .lt('start_time', fetchEndStr); 
 
       if (shiftError) console.error("Shift Error:", shiftError);
       
@@ -130,7 +129,6 @@ function OverviewContent() {
   // --- COLOR LOGIC ---
   const getShiftStyle = (shift) => {
     if (!shift.user_id) {
-       // CHANGED: Red -> Navy Blue
        return 'bg-blue-50 border-2 border-dashed border-blue-400 text-blue-900';
     }
 
@@ -217,7 +215,8 @@ function OverviewContent() {
 
                 return (
                   <tr key={store.id} className="group transition-colors hover:bg-gray-50">
-                    <td className="p-4 border-b border-r border-l border-gray-200 bg-white sticky left-0 z-20 group-hover:bg-gray-50 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)] transition-colors">
+                    {/* CHANGED: border-b to border-b-4 for thicker line */}
+                    <td className="p-4 border-b-4 border-r border-l border-gray-200 bg-white sticky left-0 z-20 group-hover:bg-gray-50 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)] transition-colors">
                       <div className="flex items-center gap-3">
                         <div className={`w-2.5 h-2.5 rounded-full ${rowDotColor} flex-shrink-0`}></div>
                         <Link href={`/store/${store.id}`} className="font-bold text-sm text-gray-900 uppercase tracking-wide hover:text-black hover:underline truncate">
@@ -227,7 +226,6 @@ function OverviewContent() {
                     </td>
 
                     {weekDays.map(day => {
-                      // --- FILTER LOGIC ---
                       const dayShifts = shifts.filter(s => {
                          const shiftDate = new Date(s.start_time);
                          const shiftIso = getLocalISOString(shiftDate);
@@ -238,7 +236,8 @@ function OverviewContent() {
                       const isToday = day.isoDate === todayIso;
 
                       return (
-                        <td key={day.isoDate} className={`p-2 border-b border-r border-gray-200 align-top min-h-[120px] transition-colors ${isToday ? 'bg-blue-50/30' : ''}`}>
+                        // CHANGED: border-b to border-b-4 for thicker line
+                        <td key={day.isoDate} className={`p-2 border-b-4 border-r border-gray-200 align-top min-h-[120px] transition-colors ${isToday ? 'bg-blue-50/30' : ''}`}>
                           <div className="flex flex-col gap-2 h-full">
                             {dayShifts.length === 0 ? (
                                <div className="flex-1 flex items-center justify-center">
@@ -262,7 +261,6 @@ function OverviewContent() {
                                   >
                                     <div className="font-bold uppercase tracking-wide truncate w-full flex items-center gap-1">
                                       {isOpenShift ? (
-                                        // CHANGED: Red -> Navy Blue
                                         <span className="text-blue-700 font-extrabold tracking-widest text-[10px]">
                                           ● OPEN
                                         </span>
@@ -283,7 +281,6 @@ function OverviewContent() {
                                     </div>
 
                                     {shift?.note && (
-                                       // CHANGED: Red -> Navy Blue
                                        <div className={`mt-1 text-[9px] font-semibold italic border-t pt-0.5 leading-tight break-words ${isOpenShift ? 'text-blue-800 border-blue-200' : 'text-gray-500 border-gray-200/50'}`}>
                                          {shift.note}
                                        </div>

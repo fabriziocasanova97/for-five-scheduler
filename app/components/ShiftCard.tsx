@@ -171,7 +171,7 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
         {isOffered && (
           <div className="mb-1">
              <span className="text-[10px] font-extrabold text-amber-600 uppercase tracking-widest">
-               ● Offered
+               ● Open Shift
              </span>
           </div>
         )}

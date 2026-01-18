@@ -5,9 +5,8 @@ import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useEffect, useState, Suspense } from 'react';
 import { isBoss } from '@/app/utils/roles';
-import OpenShiftsBoard from './components/OpenShiftsBoard'; // <--- NEW IMPORT
+// REMOVED OpenShiftsBoard Import
 
-// 1. Initialize Supabase
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -110,41 +109,31 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [amIBoss, setAmIBoss] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true); 
     const fetchData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Check if Operations/Boss
       const bossStatus = isBoss(user?.email);
       setAmIBoss(bossStatus);
 
       let dataToSet = [];
 
       if (bossStatus) {
-        // SCENARIO A: BOSS (Operations)
-        // Fetch ALL stores
         const { data: allStores } = await supabase
           .from('stores')
           .select('*')
           .order('name');
         dataToSet = allStores || [];
       } else {
-        // SCENARIO B: STAFF / BARISTA
-        // 1. Find all shifts for this user to see which stores they belong to
         const { data: myShifts } = await supabase
           .from('shifts')
           .select('store_id')
           .eq('user_id', user?.id);
         
-        // 2. Extract unique Store IDs from their shifts
-        // (Using Set to remove duplicates)
         const myStoreIds = [...new Set(myShifts?.map(s => s.store_id) || [])];
 
         if (myStoreIds.length > 0) {
-          // 3. Fetch details only for those stores
           const { data: myStores } = await supabase
             .from('stores')
             .select('*')
@@ -152,7 +141,6 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
             .order('name');
           dataToSet = myStores || [];
         } else {
-          // User has no shifts yet -> No stores visible
           dataToSet = [];
         }
       }
@@ -163,55 +151,27 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
     fetchData();
   }, []);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.reload(); 
-  };
-
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* HEADER */}
-      <header className="bg-white py-8 border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col items-center gap-6">
-          <div className="text-center">
-            <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 uppercase tracking-wider mb-2">
-              Locations
-            </h1>
-            <p className="text-sm text-gray-500 uppercase tracking-widest font-medium">
-              {amIBoss ? 'Select store to view schedules' : 'My Assigned Locations'}
-            </p>
-          </div>
-          
-          <div className="flex flex-wrap justify-center gap-4 w-full">
-            {mounted && amIBoss && (
-              <Link 
-                href="/overview"
-                className="flex items-center gap-2 bg-black text-white px-5 py-2.5 text-sm font-bold uppercase tracking-wider shadow-sm hover:bg-gray-800 transition-all"
-              >
-                Master View
-              </Link>
-            )}
-
-            <button
-              onMouseDown={handleLogout} 
-              className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-5 py-2.5 text-sm font-bold uppercase tracking-wider shadow-sm hover:bg-gray-100 hover:text-black hover:border-black transition-all cursor-pointer"
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </header>
+      
+      {/* PAGE TITLE */}
+      <div className="max-w-7xl mx-auto px-6 pt-10 pb-4">
+        <h1 className="text-3xl font-extrabold text-gray-900 uppercase tracking-widest">
+          Locations
+        </h1>
+        <p className="text-xs text-gray-500 uppercase tracking-widest mt-1">
+           {amIBoss ? 'All Stores' : 'My Assigned Locations'}
+        </p>
+      </div>
 
       {/* MAIN CONTENT */}
-      <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto py-6 px-6">
         
-        {/* NEW: OPEN SHIFTS WIDGET */}
-        {/* This will automatically hide itself if there are no open shifts */}
-        <OpenShiftsBoard />
+        {/* REMOVED: OpenShiftsBoard */}
 
-        {/* EMPTY STATE - For new hires with no shifts yet */}
+        {/* EMPTY STATE */}
         {stores.length === 0 && !loading && (
           <div className="text-center py-12">
             <div className="text-gray-400 text-4xl mb-4">☕️</div>
@@ -220,12 +180,12 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
           </div>
         )}
 
+        {/* GRID OF STORES */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-16">
           {stores.map((store: any) => (
             <Link key={store.id} href={`/store/${store.id}`} className="group block">
               
-              {/* 1. Image */}
-              <div className="aspect-w-16 aspect-h-9 mb-4 overflow-hidden bg-gray-100">
+              <div className="aspect-w-16 aspect-h-9 mb-4 overflow-hidden bg-gray-100 shadow-sm border border-gray-100">
                 <img 
                   src={getStoreImage(store.name)} 
                   alt={store.name}
@@ -238,7 +198,6 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
                 />
               </div>
 
-              {/* 2. Text & Line */}
               <div className="border-b border-gray-300 pb-2 group-hover:border-black transition-colors duration-300">
                 <div className="flex justify-between items-end">
                   <h3 className="text-xl font-bold text-gray-900 uppercase tracking-wider truncate group-hover:text-black">

@@ -12,6 +12,7 @@ import ShiftCard from '@/app/components/ShiftCard';
 import CopyWeekButton from '@/app/components/CopyWeekButton';
 import LaborSummary from '@/app/components/LaborSummary';
 import StoreNote from '@/app/components/StoreNote'; 
+import SwapRequests from '@/app/components/SwapRequests'; // <--- NEW IMPORT
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -109,7 +110,6 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
     const fetchEnd = new Date(currentMonday);
     fetchEnd.setDate(fetchEnd.getDate() + 8);
 
-    // Note: select('*') automatically includes the new 'note' column
     const { data: shiftData } = await supabase
       .from('shifts')
       .select(`*, profiles ( full_name, role )`) 
@@ -140,9 +140,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-white">Loading...</div>;
 
-  // CHANGED: Force navigation to be enabled for everyone for testing
-  // const allowedRoles = ['operations', 'manager'];
-  // const canNavigate = allowedRoles.includes(currentUserRole.toLowerCase());
+  // Navigation Logic (Keeping it open for testing as requested)
   const canNavigate = true; 
 
   return (
@@ -210,9 +208,14 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
           amIBoss={amIBoss}
         />
 
-        {/* --- LABOR SUMMARY --- */}
+        {/* --- MANAGER DASHBOARD (Swaps & Labor) --- */}
         {amIBoss && (
-          <div className="mt-6">
+          <div className="mt-6 flex flex-col gap-6">
+            
+            {/* 1. NEW: SWAP REQUESTS INBOX */}
+            <SwapRequests storeId={storeId} />
+
+            {/* 2. Labor Summary */}
             <LaborSummary 
               shifts={currentWeekShifts} 
               amIBoss={amIBoss} 
