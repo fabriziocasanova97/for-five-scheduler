@@ -39,9 +39,48 @@ export default function AddShiftModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // --- NEW: AVAILABILITY STATE ---
+  const [availabilityList, setAvailabilityList] = useState<any[]>([]);
+  const [availabilityWarning, setAvailabilityWarning] = useState<string | null>(null);
+
   useEffect(() => {
     if (preSelectedDate) setDate(preSelectedDate);
   }, [preSelectedDate]);
+
+  // --- NEW: FETCH AVAILABILITY RULES ---
+  useEffect(() => {
+    const fetchAvailability = async () => {
+      const { data } = await supabase.from('availability').select('*');
+      if (data) setAvailabilityList(data);
+    };
+    if (isOpen) fetchAvailability();
+  }, [isOpen]);
+
+  // --- NEW: CHECK AVAILABILITY ---
+  useEffect(() => {
+    if (!employeeId || !date) {
+      setAvailabilityWarning(null);
+      return;
+    }
+
+    // Convert selected Date to Day Name (e.g., "Monday")
+    const dateObj = new Date(date + 'T12:00:00'); 
+    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+
+    // Find rule
+    const rule = availabilityList.find(r => 
+      r.user_id === employeeId && 
+      r.day_of_week === dayName
+    );
+
+    if (rule && !rule.is_available) {
+      // UPDATED MESSAGE HERE
+      setAvailabilityWarning(`${dayName}: Marked as unavailable`);
+    } else {
+      setAvailabilityWarning(null);
+    }
+  }, [employeeId, date, availabilityList]);
+
 
   if (!isOpen) return null;
 
@@ -53,9 +92,6 @@ export default function AddShiftModal({
     // --- TIMEZONE FIX START ---
     const startObj = new Date(`${date}T${startTime}`);
     const endObj = new Date(`${date}T${endTime}`);
-
-    // 1. Validation
-    // REMOVED check for employeeId to allow Open Shifts
     
     if (endObj <= startObj) {
       setError('End time must be after start time.');
@@ -63,13 +99,11 @@ export default function AddShiftModal({
       return;
     }
 
-    // 2. Convert to UTC Strings for Supabase
     const startIso = startObj.toISOString();
     const endIso = endObj.toISOString();
     // --- TIMEZONE FIX END ---
 
-    // --- STEP 3: CONFLICT DETECTION ---
-    // Only check for conflicts if a specific human is selected
+    // --- CONFLICT DETECTION (EXISTING) ---
     if (employeeId) {
       try {
         const { data: conflicts, error: conflictError } = await supabase
@@ -96,14 +130,13 @@ export default function AddShiftModal({
         console.error("Conflict check failed:", err);
       }
     }
-    // --- END CONFLICT DETECTION ---
 
     const { error: insertError } = await supabase
       .from('shifts')
       .insert([
         {
           store_id: storeId,
-          user_id: employeeId || null, // If empty string, save as NULL (Open Shift)
+          user_id: employeeId || null, 
           start_time: startIso,
           end_time: endIso,
           note: note.trim() || null,
@@ -161,7 +194,6 @@ export default function AddShiftModal({
               className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm p-3 focus:ring-black focus:border-black rounded-none outline-none appearance-none font-bold"
               required={false}
             >
-              {/* NEW: Open Shift Option */}
               <option value="" className="text-blue-600 font-extrabold">
               OPEN SHIFT
               </option>
@@ -175,6 +207,18 @@ export default function AddShiftModal({
               ))}
             </select>
           </div>
+
+          {/* --- NEW: AVAILABILITY WARNING --- */}
+          {availabilityWarning && (
+            <div className="p-3 bg-red-50 border-l-4 border-red-500 animate-in fade-in slide-in-from-top-1">
+               <p className="text-xs font-bold text-red-700 uppercase tracking-wide">
+                 Unavailable
+               </p>
+               <p className="text-xs text-red-600 mt-1">
+                 {availabilityWarning}
+               </p>
+            </div>
+          )}
 
           {/* Date Select */}
           <div>
@@ -249,9 +293,9 @@ export default function AddShiftModal({
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-3 bg-black text-white font-bold uppercase tracking-widest text-xs hover:bg-gray-800 transition-colors disabled:opacity-50"
+              className={`flex-1 py-3 text-white font-bold uppercase tracking-widest text-xs transition-colors disabled:opacity-50 ${availabilityWarning ? 'bg-red-600 hover:bg-red-700' : 'bg-black hover:bg-gray-800'}`}
             >
-              {loading ? 'Checking...' : (employeeId ? 'Save Shift' : 'Create Open Shift')}
+              {loading ? 'Checking...' : (availabilityWarning ? 'Override & Save' : (employeeId ? 'Save Shift' : 'Create Open Shift'))}
             </button>
           </div>
 
