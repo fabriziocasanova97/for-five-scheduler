@@ -12,7 +12,7 @@ import ShiftCard from '@/app/components/ShiftCard';
 import CopyWeekButton from '@/app/components/CopyWeekButton';
 import LaborSummary from '@/app/components/LaborSummary';
 import StoreNote from '@/app/components/StoreNote'; 
-import SwapRequests from '@/app/components/SwapRequests'; // <--- NEW IMPORT
+import SwapRequests from '@/app/components/SwapRequests'; 
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -97,7 +97,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
         .single();
       
       const role = profile?.role ? profile.role.trim() : '';
-      setAmIBoss(role === 'Operations'); 
+      setAmIBoss(role === 'Manager' || role === 'Operations'); 
       setCurrentUserRole(role); 
     }
 
@@ -138,10 +138,42 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
     setIsModalOpen(true);
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-white">Loading...</div>;
+  // --- 3. NAVIGATION PERMISSION LOGIC (SUNDAY 4PM RULE) ---
+  const canGoPrev = true; // Always allow going back to history
+  let canGoNext = false;
 
-  // Navigation Logic (Keeping it open for testing as requested)
-  const canNavigate = true; 
+  if (loading) {
+     canGoNext = false; // Safe default while loading
+  } else if (amIBoss) {
+     canGoNext = true; // Boss sees everything
+  } else {
+     // Calculate "Real" Next Week Start (Monday) based on actual today
+     const now = new Date();
+     const currentDay = now.getDay(); // 0=Sun, 1=Mon...
+     const distToMon = (currentDay === 0 ? -6 : 1) - currentDay;
+     const realThisMonday = new Date(now);
+     realThisMonday.setDate(now.getDate() + distToMon);
+     realThisMonday.setHours(0,0,0,0);
+
+     const realNextMonday = new Date(realThisMonday);
+     realNextMonday.setDate(realThisMonday.getDate() + 7);
+
+     // Check the target "nextWeek" (calculated from URL) against Reality
+     if (nextWeek < realNextMonday) {
+       // Target is in the past or current week -> Allow
+       canGoNext = true;
+     } else if (nextWeek.getTime() === realNextMonday.getTime()) {
+       // Target is exactly Next Week -> Check Sunday 4PM Rule
+       const isSunday = currentDay === 0;
+       const isAfter4PM = now.getHours() >= 16;
+       canGoNext = isSunday && isAfter4PM;
+     } else {
+       // Target is 2+ weeks out -> Block
+       canGoNext = false;
+     }
+  }
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-white">Loading...</div>;
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
@@ -156,7 +188,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
             </Link>
 
             <div className="flex items-center gap-4">
-               {canNavigate && (
+               {canGoPrev && (
                  <Link href={`/store/${storeId}?date=${prevDateString}`} className="group p-2">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400 group-hover:text-black transition-colors">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -168,12 +200,19 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
                  Week of {weekDays[0].dateLabel}
                </span>
 
-               {canNavigate && (
+               {/* NEXT ARROW (Conditional) */}
+               {canGoNext ? (
                  <Link href={`/store/${storeId}?date=${nextDateString}`} className="group p-2">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400 group-hover:text-black transition-colors">
                       <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                     </svg>
                  </Link>
+               ) : (
+                 <div className="p-2 opacity-20 cursor-not-allowed">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-300">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </svg>
+                 </div>
                )}
             </div>
         </div>
@@ -211,11 +250,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
         {/* --- MANAGER DASHBOARD (Swaps & Labor) --- */}
         {amIBoss && (
           <div className="mt-6 flex flex-col gap-6">
-            
-            {/* 1. NEW: SWAP REQUESTS INBOX */}
             <SwapRequests storeId={storeId} />
-
-            {/* 2. Labor Summary */}
             <LaborSummary 
               shifts={currentWeekShifts} 
               amIBoss={amIBoss} 
