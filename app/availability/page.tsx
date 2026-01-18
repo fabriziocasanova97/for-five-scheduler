@@ -16,11 +16,14 @@ export default function AvailabilityPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // DEADLINE LOGIC
-  // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
-  const today = new Date().getDay();
-  // If today is Thu(4), Fri(5), Sat(6) or Sun(0), it is LOCKED.
-  const isLocked = today === 4 || today === 5 || today === 6 || today === 0;
+  // --- DEADLINE LOGIC ---
+  const today = new Date().getDay(); // 0=Sun, 1=Mon...
+  
+  // ORIGINAL RULE (Commented out for testing):
+  // const isLocked = today === 4 || today === 5 || today === 6 || today === 0;
+  
+  // TESTING MODE: Force UNLOCK so you can try it today
+  const isLocked = false; 
 
   useEffect(() => {
     fetchAvailability();
@@ -45,7 +48,7 @@ export default function AvailabilityPage() {
   };
 
   const handleChange = (id, field, value) => {
-    if (isLocked) return; // Stop edits if locked
+    if (isLocked) return; 
     setItems(prev => prev.map(item => 
       item.id === id ? { ...item, [field]: value } : item
     ));
