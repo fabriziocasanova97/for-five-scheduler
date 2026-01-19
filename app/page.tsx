@@ -17,15 +17,13 @@ const getStoreImage = (storeName: string) => {
   return `/stores/${cleanName}.jpg`;
 };
 
-// --- SHIFT VISIBILITY LOGIC (SUNDAY 4PM RULE) ---
+// --- SHIFT VISIBILITY LOGIC ---
 const isShiftVisible = (shiftIsoDate: string, amIBoss: boolean) => {
-  if (amIBoss) return true; // Managers see everything
+  if (amIBoss) return true; 
 
   const shiftDate = new Date(shiftIsoDate);
   const now = new Date();
-
-  // Calculate "Start of Next Week" (Next Monday)
-  const currentDay = now.getDay(); // 0=Sun, 1=Mon...
+  const currentDay = now.getDay(); 
   const distanceToMonday = currentDay === 0 ? 6 : currentDay - 1;
   const thisMonday = new Date(now);
   thisMonday.setDate(now.getDate() - distanceToMonday);
@@ -34,13 +32,11 @@ const isShiftVisible = (shiftIsoDate: string, amIBoss: boolean) => {
   const nextMonday = new Date(thisMonday);
   nextMonday.setDate(thisMonday.getDate() + 7);
 
-  // If shift is before next Monday (e.g. today or tomorrow), show it
   if (shiftDate < nextMonday) return true;
 
-  // If shift is NEXT week, check if we passed Sunday 4 PM
   const thisSundayCutoff = new Date(nextMonday);
-  thisSundayCutoff.setDate(nextMonday.getDate() - 1); // Sunday
-  thisSundayCutoff.setHours(16, 0, 0, 0); // 4 PM
+  thisSundayCutoff.setDate(nextMonday.getDate() - 1); 
+  thisSundayCutoff.setHours(16, 0, 0, 0); 
 
   return now >= thisSundayCutoff;
 };
@@ -75,7 +71,6 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
     <div className="min-h-screen flex items-center justify-center bg-white px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          {/* UPDATED HEADER: Clickable Link & Removed Subtitle */}
           <Link href="/">
             <h1 className="text-4xl font-extrabold text-black uppercase tracking-widest text-center hover:opacity-80 transition-opacity cursor-pointer">
               For Five
@@ -99,7 +94,6 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
               />
             </div>
             
-            {/* PASSWORD FIELD WITH TOGGLE */}
             <div className="relative">
               <label htmlFor="password" className="sr-only">Password</label>
               <input
@@ -112,19 +106,16 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              {/* EYE ICON BUTTON */}
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-black focus:outline-none"
               >
                 {showPassword ? (
-                  // Eye Open (Hide)
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
                   </svg>
                 ) : (
-                  // Eye Closed (Show)
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -168,7 +159,7 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
       const bossStatus = isBoss(user?.email);
       setAmIBoss(bossStatus);
 
-      // 1. FETCH UPCOMING SHIFTS (For Dashboard)
+      // 1. FETCH UPCOMING SHIFTS
       const now = new Date().toISOString();
       const { data: shiftsData } = await supabase
         .from('shifts')
@@ -176,7 +167,7 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
         .eq('user_id', user.id)
         .gt('start_time', now)
         .order('start_time', { ascending: true })
-        .limit(10); // Fetch a few more to allow for filtering
+        .limit(10); 
 
       // --- APPLY SUNDAY 4PM FILTER ---
       const visibleShifts = (shiftsData || []).filter(shift => 
@@ -185,29 +176,16 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
 
       setMyShifts(visibleShifts.slice(0, 5));
 
-      // 2. FETCH STORES (Filtered)
+      // 2. FETCH STORES
       if (bossStatus) {
-        // Boss sees ALL stores
-        const { data: allStores } = await supabase
-          .from('stores')
-          .select('*')
-          .order('name');
+        const { data: allStores } = await supabase.from('stores').select('*').order('name');
         setStores(allStores || []);
       } else {
-        // Barista sees ONLY stores they have worked/will work at
-        const { data: userHistory } = await supabase
-          .from('shifts')
-          .select('store_id')
-          .eq('user_id', user.id);
-        
+        const { data: userHistory } = await supabase.from('shifts').select('store_id').eq('user_id', user.id);
         const myStoreIds = [...new Set(userHistory?.map(s => s.store_id) || [])];
 
         if (myStoreIds.length > 0) {
-          const { data: myStores } = await supabase
-            .from('stores')
-            .select('*')
-            .in('id', myStoreIds)
-            .order('name');
+          const { data: myStores } = await supabase.from('stores').select('*').in('id', myStoreIds).order('name');
           setStores(myStores || []);
         } else {
           setStores([]);
@@ -346,7 +324,6 @@ function DashboardContent({ sessionKey }: { sessionKey: number }) {
                     <h3 className="text-xl font-bold text-gray-900 uppercase tracking-wider truncate group-hover:text-black leading-none">
                       {store.name}
                     </h3>
-                    {/* ADDED ADDRESS FIELD */}
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1 truncate">
                        {store.address}
                     </p>

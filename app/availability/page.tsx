@@ -11,6 +11,14 @@ const supabase = createClient(
 
 const DAYS_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+// --- HELPER: CONVERT TO TITLE CASE ---
+const toTitleCase = (str: string) => {
+  if (!str) return '';
+  return str.toLowerCase().split(' ').map(word => {
+    return word.charAt(0).toUpperCase() + word.slice(1);
+  }).join(' ');
+};
+
 export default function AvailabilityPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -80,12 +88,23 @@ export default function AvailabilityPage() {
     ));
   };
 
-  // --- SET ALL DAY FUNCTION ---
+  // --- TOGGLE ALL DAY FUNCTION ---
   const handleSetAllDay = (id) => {
     if (isLocked) return;
-    setItems(prev => prev.map(item => 
-      item.id === id ? { ...item, start_time: '00:00', end_time: '23:59' } : item
-    ));
+    setItems(prev => prev.map(item => {
+      if (item.id !== id) return item;
+
+      // Check if it is currently set to All Day
+      const isCurrentlyAllDay = item.start_time === '00:00' && item.end_time === '23:59';
+
+      if (isCurrentlyAllDay) {
+        // If ON, turn OFF (clear times)
+        return { ...item, start_time: '', end_time: '' };
+      } else {
+        // If OFF (or partial), turn ON All Day
+        return { ...item, start_time: '00:00', end_time: '23:59' };
+      }
+    }));
   };
 
   const handleSave = async () => {
@@ -129,15 +148,14 @@ export default function AvailabilityPage() {
               <select
                 value={targetUserId}
                 onChange={(e) => setTargetUserId(e.target.value)}
-                className="appearance-none block w-full bg-white border border-gray-300 text-gray-900 py-3 px-4 pr-10 rounded-none leading-tight focus:outline-none focus:border-black font-bold uppercase tracking-wide text-sm"
+                className="appearance-none block w-full bg-white border border-gray-300 text-gray-900 py-3 px-4 pr-10 rounded-none leading-tight focus:outline-none focus:border-black font-bold tracking-wide text-sm"
               >
                 {staffList.map(staff => (
                   <option key={staff.id} value={staff.id}>
-                    {staff.full_name}
+                    {toTitleCase(staff.full_name)}
                   </option>
                 ))}
               </select>
-              {/* Custom Chevron Arrow */}
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-900">
                 <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
                   <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
@@ -197,7 +215,6 @@ export default function AvailabilityPage() {
         <div className="bg-white shadow-sm border border-gray-200">
           <ul className="divide-y divide-gray-100">
             {items.map((item) => {
-              // CHECK IF FULL DAY IS SELECTED
               const isAllDay = item.start_time === '00:00' && item.end_time === '23:59';
               
               return (
@@ -206,17 +223,24 @@ export default function AvailabilityPage() {
                   className={`p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors ${item.is_available ? 'bg-white hover:bg-gray-50' : 'bg-gray-50'}`}
                 >
                   
-                  {/* Day Name & Toggle */}
+                  {/* Day Name & Custom Checkbox */}
                   <div className="flex items-center justify-between sm:justify-start sm:w-48 gap-4">
                     <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
+                      
+                      <button
+                        onClick={() => handleChange(item.id, 'is_available', !item.is_available)}
                         disabled={isLocked}
-                        checked={item.is_available}
-                        onChange={(e) => handleChange(item.id, 'is_available', e.target.checked)}
-                        className="h-5 w-5 text-black focus:ring-black border-gray-300 rounded-none cursor-pointer disabled:opacity-50"
-                      />
-                      <span className={`text-sm font-bold uppercase tracking-widest ${item.is_available ? 'text-gray-900' : 'text-gray-400 line-through'}`}>
+                        className={`flex-shrink-0 w-5 h-5 border flex items-center justify-center transition-colors disabled:opacity-50 ${
+                          item.is_available 
+                            ? 'bg-black border-black text-white' 
+                            : 'bg-white border-gray-300 hover:border-gray-400'
+                        }`}
+                        title={item.is_available ? "Mark Unavailable" : "Mark Available"}
+                      >
+                         {item.is_available && <span className="text-xs font-bold leading-none">✓</span>}
+                      </button>
+
+                      <span className={`text-[14px] font-bold tracking-widest ${item.is_available ? 'text-gray-900' : 'text-gray-400 line-through'}`}>
                         {item.day_of_week}
                       </span>
                     </div>
@@ -233,7 +257,7 @@ export default function AvailabilityPage() {
                             disabled={isLocked}
                             value={item.start_time || ''}
                             onChange={(e) => handleChange(item.id, 'start_time', e.target.value)}
-                            className="block w-28 text-sm border-gray-300 rounded-none focus:ring-black focus:border-black p-2 bg-white shadow-sm"
+                            className="block w-28 text-sm text-black border-gray-300 rounded-none focus:ring-black focus:border-black p-2 bg-white shadow-sm"
                           />
                         </div>
                         <span className="text-gray-300 mb-2">-</span>
@@ -244,21 +268,21 @@ export default function AvailabilityPage() {
                             disabled={isLocked}
                             value={item.end_time || ''}
                             onChange={(e) => handleChange(item.id, 'end_time', e.target.value)}
-                            className="block w-28 text-sm border-gray-300 rounded-none focus:ring-black focus:border-black p-2 bg-white shadow-sm"
+                            className="block w-28 text-sm text-black border-gray-300 rounded-none focus:ring-black focus:border-black p-2 bg-white shadow-sm"
                           />
                         </div>
                       </div>
 
-                      {/* NEW: ENHANCED ALL DAY BUTTON */}
+                      {/* ALL DAY BUTTON */}
                       <button
                         onClick={() => handleSetAllDay(item.id)}
                         disabled={isLocked}
-                        className={`mb-[1px] px-3 py-2 text-[10px] font-bold uppercase tracking-wider border transition-all h-[38px] ${
+                        className={`mb-[1px] px-3 py-2 text-[10px] font-bold tracking-wider border transition-all h-[38px] ${
                           isAllDay 
                             ? 'bg-black text-white border-black' 
                             : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
                         }`}
-                        title="Set to 00:00 - 23:59"
+                        title={isAllDay ? "Clear Times" : "Set to 00:00 - 23:59"}
                       >
                         {isAllDay ? 'All Day ✓' : 'All Day'}
                       </button>

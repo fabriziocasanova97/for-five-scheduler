@@ -99,6 +99,13 @@ export default function Header() {
             </Link>
           )}
 
+          {/* ADDED: STAFF LINK FOR MANAGERS */}
+          {isManager && (
+            <Link href="/staff" className="hover:text-gray-300 transition-colors">
+              Staff
+            </Link>
+          )}
+
           {/* NOTIFICATIONS */}
           {isManager && (
             <div className="border-l border-gray-800 pl-6">
@@ -155,6 +162,10 @@ export default function Header() {
            <Link href="/availability" onClick={() => setIsMenuOpen(false)} className="text-sm font-bold uppercase tracking-widest">Availability</Link>
            
            {isManager && <Link href="/overview" onClick={() => setIsMenuOpen(false)} className="text-sm font-bold uppercase tracking-widest">Master View</Link>}
+           
+           {/* ADDED: STAFF LINK FOR MANAGERS MOBILE */}
+           {isManager && <Link href="/staff" onClick={() => setIsMenuOpen(false)} className="text-sm font-bold uppercase tracking-widest">Staff</Link>}
+           
            <button onClick={handleSignOut} className="text-left text-sm font-bold uppercase tracking-widest text-red-500">Sign Out</button>
         </div>
       )}
