@@ -12,7 +12,8 @@ import ShiftCard from '@/app/components/ShiftCard';
 import CopyWeekButton from '@/app/components/CopyWeekButton';
 import LaborSummary from '@/app/components/LaborSummary';
 import StoreNote from '@/app/components/StoreNote'; 
-import SwapRequests from '@/app/components/SwapRequests'; 
+import SwapRequests from '@/app/components/SwapRequests';
+import FindCoveragePanel from '@/app/components/FindCoveragePanel'; // <--- 1. NEW IMPORT
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -48,6 +49,9 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDateForShift, setSelectedDateForShift] = useState('');
+
+  // Coverage Panel State
+  const [isCoverageOpen, setIsCoverageOpen] = useState(false); // <--- 2. NEW STATE
 
   // --- 1. DATE LOGIC ---
   const anchorDate = queryDate ? new Date(queryDate + 'T12:00:00') : new Date();
@@ -138,18 +142,17 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
     setIsModalOpen(true);
   };
 
-  // --- 3. NAVIGATION PERMISSION LOGIC (SUNDAY 4PM RULE) ---
-  const canGoPrev = true; // Always allow going back to history
+  // --- 3. NAVIGATION PERMISSION LOGIC ---
+  const canGoPrev = true;
   let canGoNext = false;
 
   if (loading) {
-     canGoNext = false; // Safe default while loading
+     canGoNext = false;
   } else if (amIBoss) {
-     canGoNext = true; // Boss sees everything
+     canGoNext = true;
   } else {
-     // Calculate "Real" Next Week Start (Monday) based on actual today
      const now = new Date();
-     const currentDay = now.getDay(); // 0=Sun, 1=Mon...
+     const currentDay = now.getDay();
      const distToMon = (currentDay === 0 ? -6 : 1) - currentDay;
      const realThisMonday = new Date(now);
      realThisMonday.setDate(now.getDate() + distToMon);
@@ -158,17 +161,13 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
      const realNextMonday = new Date(realThisMonday);
      realNextMonday.setDate(realThisMonday.getDate() + 7);
 
-     // Check the target "nextWeek" (calculated from URL) against Reality
      if (nextWeek < realNextMonday) {
-       // Target is in the past or current week -> Allow
        canGoNext = true;
      } else if (nextWeek.getTime() === realNextMonday.getTime()) {
-       // Target is exactly Next Week -> Check Sunday 4PM Rule
        const isSunday = currentDay === 0;
        const isAfter4PM = now.getHours() >= 16;
        canGoNext = isSunday && isAfter4PM;
      } else {
-       // Target is 2+ weeks out -> Block
        canGoNext = false;
      }
   }
@@ -200,7 +199,6 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
                  Week of {weekDays[0].dateLabel}
                </span>
 
-               {/* NEXT ARROW (Conditional) */}
                {canGoNext ? (
                  <Link href={`/store/${storeId}?date=${nextDateString}`} className="group p-2">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400 group-hover:text-black transition-colors">
@@ -225,6 +223,15 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
 
             {amIBoss && (
               <div className="flex gap-2 mb-1">
+                
+                {/* --- 3. NEW: FIND COVERAGE BUTTON --- */}
+                <button
+                  onClick={() => setIsCoverageOpen(true)}
+                  className="bg-white border border-gray-300 text-black text-xs font-bold uppercase tracking-wider px-4 py-2.5 hover:bg-gray-50 transition-all flex items-center gap-2"
+                >
+                  <span>🔎</span> Coverage
+                </button>
+
                 <CopyWeekButton 
                    storeId={storeId} 
                    currentMonday={currentMonday} 
@@ -240,14 +247,12 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
             )}
         </div>
 
-        {/* --- STORE ANNOUNCEMENTS --- */}
         <StoreNote 
           storeId={storeId} 
           initialNote={store?.notes} 
           amIBoss={amIBoss}
         />
 
-        {/* --- MANAGER DASHBOARD (Swaps & Labor) --- */}
         {amIBoss && (
           <div className="mt-6 flex flex-col gap-6">
             <SwapRequests storeId={storeId} />
@@ -371,6 +376,13 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
           onShiftAdded={handleShiftAdded}
         />
       )}
+{/* --- 4. NEW: COVERAGE SLIDE-OVER --- */}
+      <FindCoveragePanel 
+        isOpen={isCoverageOpen} 
+        onClose={() => setIsCoverageOpen(false)} 
+        defaultDate={todayIso} // Starts on Today
+        weekDays={weekDays}    // Passes the current week structure
+      />
     </div>
   );
 }
