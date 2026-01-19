@@ -130,6 +130,8 @@ export default function AvailabilityPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      
+      {/* HEADER SECTION */}
       <div className="max-w-3xl mx-auto px-6 pt-10 pb-4">
         <h1 className="text-3xl font-extrabold text-gray-900 uppercase tracking-widest">
           {amIBoss ? 'Team Availability' : 'My Availability'}

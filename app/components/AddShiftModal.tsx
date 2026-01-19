@@ -56,7 +56,7 @@ export default function AddShiftModal({
     if (isOpen) fetchAvailability();
   }, [isOpen]);
 
-  // --- NEW: CHECK AVAILABILITY ---
+  // --- NEW: CHECK AVAILABILITY LOGIC (The Fix) ---
   useEffect(() => {
     if (!employeeId || !date) {
       setAvailabilityWarning(null);
@@ -67,19 +67,57 @@ export default function AddShiftModal({
     const dateObj = new Date(date + 'T12:00:00'); 
     const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
 
-    // Find rule
+    // Find rule for this user on this day
     const rule = availabilityList.find(r => 
       r.user_id === employeeId && 
       r.day_of_week === dayName
     );
 
+    // --- CHECK 1: IS MARKED "UNAVAILABLE"? ---
     if (rule && !rule.is_available) {
-      // UPDATED MESSAGE HERE
       setAvailabilityWarning(`${dayName}: Marked as unavailable`);
-    } else {
-      setAvailabilityWarning(null);
+      return;
     }
-  }, [employeeId, date, availabilityList]);
+
+    // --- CHECK 2: TIME BOUNDARIES (The New Math) ---
+    // If they ARE available (or no rule exists, implying open availability if logic permits, 
+    // but usually we rely on the rule existing. If no rule, we assume OK or handle strict.)
+    
+    if (rule && rule.is_available && rule.start_time && rule.end_time) {
+      // Compare Times as Strings (HH:MM is comparable alphabetically if same format)
+      // e.g. "06:30" < "10:00" is true.
+      
+      const shiftStart = startTime;
+      const shiftEnd = endTime;
+      const availStart = rule.start_time.slice(0, 5); // Ensure HH:MM
+      const availEnd = rule.end_time.slice(0, 5);     // Ensure HH:MM
+
+      // Does shift start TOO EARLY?
+      if (shiftStart < availStart) {
+        setAvailabilityWarning(`Starts too early! Available from ${formatTime12(availStart)}`);
+        return;
+      }
+
+      // Does shift end TOO LATE?
+      if (shiftEnd > availEnd) {
+        setAvailabilityWarning(`Ends too late! Available until ${formatTime12(availEnd)}`);
+        return;
+      }
+    }
+
+    // If we passed all checks
+    setAvailabilityWarning(null);
+
+  }, [employeeId, date, startTime, endTime, availabilityList]); // Re-run when TIME changes too
+
+  // Helper to show readable time in warning (e.g. 15:30 -> 3:30 PM)
+  const formatTime12 = (time24: string) => {
+    const [h, m] = time24.split(':');
+    let hours = parseInt(h);
+    const suffix = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    return `${hours}:${m} ${suffix}`;
+  };
 
 
   if (!isOpen) return null;
@@ -208,13 +246,13 @@ export default function AddShiftModal({
             </select>
           </div>
 
-          {/* --- NEW: AVAILABILITY WARNING --- */}
+          {/* --- NEW: AVAILABILITY WARNING (Dynamic) --- */}
           {availabilityWarning && (
             <div className="p-3 bg-red-50 border-l-4 border-red-500 animate-in fade-in slide-in-from-top-1">
                <p className="text-xs font-bold text-red-700 uppercase tracking-wide">
-                 Unavailable
+                 ⚠️ Availability Warning
                </p>
-               <p className="text-xs text-red-600 mt-1">
+               <p className="text-xs text-red-600 mt-1 font-medium">
                  {availabilityWarning}
                </p>
             </div>

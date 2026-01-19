@@ -126,37 +126,34 @@ export default function StaffDirectory() {
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
       
-      {/* HEADER */}
-      <div className="bg-white border-b border-gray-200 pt-8 pb-6 px-6 sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <Link href="/" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-black">
-              ← Dashboard
-            </Link>
-            <h1 className="text-xl font-extrabold text-black uppercase tracking-widest">
-              Staff Locator
-            </h1>
-          </div>
+      {/* HEADER - CONSISTENT STYLE */}
+      <div className="max-w-2xl mx-auto px-6 pt-10 pb-4">
+        <h1 className="text-3xl font-extrabold text-gray-900 uppercase tracking-widest">
+          Staff Locator
+        </h1>
+        <p className="text-xs text-gray-500 uppercase tracking-widest mt-1">
+           Find where anyone is working
+        </p>
 
-          <div className="relative">
+        {/* SEARCH BAR */}
+        <div className="relative mt-8">
              <input 
                type="text" 
                placeholder="SEARCH STAFF..." 
                value={search}
                onChange={(e) => setSearch(e.target.value)}
-               className="w-full bg-gray-100 border-none p-4 text-sm font-bold placeholder-gray-400 focus:ring-2 focus:ring-black outline-none transition-all uppercase tracking-wide"
+               className="w-full bg-white border border-gray-200 p-4 text-sm font-bold placeholder-gray-300 focus:ring-2 focus:ring-black focus:border-black outline-none transition-all uppercase tracking-wide shadow-sm"
              />
-             <div className="absolute right-4 top-4 text-gray-400">
+             <div className="absolute right-4 top-4 text-gray-300">
                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                </svg>
              </div>
-          </div>
         </div>
       </div>
 
       {/* LIST */}
-      <main className="max-w-2xl mx-auto px-6 py-6">
+      <main className="max-w-2xl mx-auto px-6 py-2">
         <div className="bg-white border border-gray-200 shadow-sm">
            {filteredStaff.length === 0 ? (
              <div className="p-8 text-center text-xs font-bold text-gray-400 uppercase tracking-widest">No staff found</div>
