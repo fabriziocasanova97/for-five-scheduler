@@ -55,6 +55,7 @@ export default function FindCoveragePanel({ isOpen, onClose, defaultDate, weekDa
 
     const busyUserIds = new Set(busyShifts?.map(s => s.user_id));
 
+    // Fix: Force Noon to avoid timezone shifting the day back
     const dateObj = new Date(targetDate + 'T12:00:00');
     const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
     
@@ -78,16 +79,19 @@ export default function FindCoveragePanel({ isOpen, onClose, defaultDate, weekDa
     setLoading(false);
   };
 
+  // Helper for Safe Date Display (Fixes the "Sunday" bug)
+  const getDisplayDay = (dateStr: string) => {
+    // Append T12:00:00 so it doesn't roll back to previous day in EST
+    return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' });
+  };
+
   if (!isOpen) return null;
 
   return (
-    // 1. OUTER CONTAINER: Handles the Background + Closing Logic
     <div 
       className="fixed inset-0 z-[60] flex justify-end bg-black/20 backdrop-blur-sm transition-opacity"
       onClick={onClose} 
     >
-      
-      {/* 2. INNER PANEL: Stops the click from bubbling up */}
       <div 
         className="w-full max-w-sm bg-white shadow-2xl h-full flex flex-col transform transition-transform animate-in slide-in-from-right duration-300"
         onClick={(e) => e.stopPropagation()} 
@@ -140,7 +144,7 @@ export default function FindCoveragePanel({ isOpen, onClose, defaultDate, weekDa
         <div className="flex-1 overflow-y-auto p-6 bg-white">
           {loading ? (
             <div className="text-center py-10 text-xs font-bold text-gray-400 uppercase tracking-widest">
-              Checking {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })}...
+              Checking {getDisplayDay(selectedDate)}...
             </div>
           ) : availableStaff.length === 0 ? (
             <div className="text-center py-10">
@@ -149,13 +153,13 @@ export default function FindCoveragePanel({ isOpen, onClose, defaultDate, weekDa
                 No coverage found
               </p>
               <p className="text-[10px] text-gray-400 mt-1 uppercase">
-                Everyone is working or unavailable on {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })}.
+                Everyone is working or unavailable on {getDisplayDay(selectedDate)}.
               </p>
             </div>
           ) : (
             <>
                <div className="mb-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                 {availableStaff.length} Available Staff on {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })}
+                 {availableStaff.length} Available Staff on {getDisplayDay(selectedDate)}
                </div>
                <div className="space-y-3">
                 {availableStaff.map(staff => (

@@ -13,7 +13,7 @@ import CopyWeekButton from '@/app/components/CopyWeekButton';
 import LaborSummary from '@/app/components/LaborSummary';
 import StoreNote from '@/app/components/StoreNote'; 
 import SwapRequests from '@/app/components/SwapRequests';
-import FindCoveragePanel from '@/app/components/FindCoveragePanel'; // <--- 1. NEW IMPORT
+import FindCoveragePanel from '@/app/components/FindCoveragePanel';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -51,7 +51,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
   const [selectedDateForShift, setSelectedDateForShift] = useState('');
 
   // Coverage Panel State
-  const [isCoverageOpen, setIsCoverageOpen] = useState(false); // <--- 2. NEW STATE
+  const [isCoverageOpen, setIsCoverageOpen] = useState(false);
 
   // --- 1. DATE LOGIC ---
   const anchorDate = queryDate ? new Date(queryDate + 'T12:00:00') : new Date();
@@ -90,8 +90,9 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
     s.start_time >= weekStartStr && s.start_time < weekEndStr
   );
 
-  // --- 2. FETCH DATA ---
+  // --- 2. OPTIMIZED FETCH DATA (PARALLEL REQUESTS) ---
   const fetchData = async () => {
+    // 1. Get User (Must happen first for Auth/Roles)
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const { data: profile } = await supabase
@@ -105,25 +106,33 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
       setCurrentUserRole(role); 
     }
 
-    const { data: storeData } = await supabase.from('stores').select('*').eq('id', storeId).single();
-    const { data: staffData } = await supabase.from('profiles').select('*').order('full_name');
-    
-    // Fetch Buffer
+    // 2. PREPARE REQUESTS (Start them all at once)
     const fetchStart = new Date(currentMonday);
     fetchStart.setDate(fetchStart.getDate() - 1);
     const fetchEnd = new Date(currentMonday);
     fetchEnd.setDate(fetchEnd.getDate() + 8);
 
-    const { data: shiftData } = await supabase
+    const storePromise = supabase.from('stores').select('*').eq('id', storeId).single();
+    const staffPromise = supabase.from('profiles').select('*').order('full_name');
+    const shiftsPromise = supabase
       .from('shifts')
       .select(`*, profiles ( full_name, role )`) 
       .eq('store_id', storeId)
       .gte('start_time', fetchStart.toISOString()) 
       .lte('start_time', fetchEnd.toISOString());
 
-    setStore(storeData);
-    setStaffList(staffData || []);
-    setShifts(shiftData || []);
+    // 3. AWAIT ALL (Wait for the slowest one, effectively running in parallel)
+    const [storeRes, staffRes, shiftsRes] = await Promise.all([
+      storePromise,
+      staffPromise,
+      shiftsPromise
+    ]);
+
+    // 4. UPDATE STATE (Note: We do NOT set loading=true at start, avoiding flicker)
+    if (storeRes.data) setStore(storeRes.data);
+    if (staffRes.data) setStaffList(staffRes.data);
+    if (shiftsRes.data) setShifts(shiftsRes.data);
+    
     setLoading(false);
   };
 
@@ -131,9 +140,11 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
     fetchData();
   }, [storeId, queryDate]); 
 
-  // --- ACTIONS ---
-  const handleShiftAdded = () => {
-    fetchData(); 
+  // --- 3. ACTIONS (UPDATED FOR SMOOTHNESS) ---
+  const handleShiftAdded = async () => {
+    // We await the data refresh so it happens before or during closing
+    // Importantly, we do NOT trigger a full-screen loading spinner
+    await fetchData(); 
     setIsModalOpen(false);
   };
 
@@ -142,7 +153,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
     setIsModalOpen(true);
   };
 
-  // --- 3. NAVIGATION PERMISSION LOGIC ---
+  // --- 4. NAVIGATION PERMISSION LOGIC ---
   const canGoPrev = true;
   let canGoNext = false;
 
@@ -224,7 +235,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
             {amIBoss && (
               <div className="flex gap-2 mb-1">
                 
-                {/* --- 3. NEW: FIND COVERAGE BUTTON --- */}
+                {/* --- COVERAGE BUTTON --- */}
                 <button
                   onClick={() => setIsCoverageOpen(true)}
                   className="bg-white border border-gray-300 text-black text-xs font-bold uppercase tracking-wider px-4 py-2.5 hover:bg-gray-50 transition-all flex items-center gap-2"
@@ -376,12 +387,13 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
           onShiftAdded={handleShiftAdded}
         />
       )}
-{/* --- 4. NEW: COVERAGE SLIDE-OVER --- */}
+
+      {/* COVERAGE PANEL */}
       <FindCoveragePanel 
         isOpen={isCoverageOpen} 
         onClose={() => setIsCoverageOpen(false)} 
-        defaultDate={todayIso} // Starts on Today
-        weekDays={weekDays}    // Passes the current week structure
+        defaultDate={todayIso} 
+        weekDays={weekDays}   
       />
     </div>
   );
