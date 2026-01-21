@@ -127,7 +127,7 @@ export default function StaffDirectory() {
     <div className="min-h-screen bg-gray-50 pb-12">
       
       {/* HEADER - CONSISTENT STYLE */}
-      <div className="max-w-2xl mx-auto px-6 pt-10 pb-4">
+      <div className="max-w-5xl mx-auto px-6 pt-10 pb-4">
         <h1 className="text-3xl font-extrabold text-gray-900 uppercase tracking-widest">
           Staff Locator
         </h1>
@@ -153,7 +153,7 @@ export default function StaffDirectory() {
       </div>
 
       {/* LIST */}
-      <main className="max-w-2xl mx-auto px-6 py-2">
+      <main className="max-w-5xl mx-auto px-6 py-2">
         <div className="bg-white border border-gray-200 shadow-sm">
            {filteredStaff.length === 0 ? (
              <div className="p-8 text-center text-xs font-bold text-gray-400 uppercase tracking-widest">No staff found</div>

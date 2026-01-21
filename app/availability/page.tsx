@@ -131,8 +131,8 @@ export default function AvailabilityPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       
-      {/* HEADER SECTION */}
-      <div className="max-w-3xl mx-auto px-6 pt-10 pb-4">
+      {/* HEADER SECTION (Centered & Consistent Width) */}
+      <div className="max-w-5xl mx-auto px-6 pt-10 pb-4">
         <h1 className="text-3xl font-extrabold text-gray-900 uppercase tracking-widest">
           {amIBoss ? 'Team Availability' : 'My Availability'}
         </h1>
@@ -213,7 +213,8 @@ export default function AvailabilityPage() {
         )}
       </div>
 
-      <main className="max-w-3xl mx-auto py-6 px-6">
+      {/* MAIN SECTION (Centered & Consistent Width) */}
+      <main className="max-w-5xl mx-auto py-6 px-6">
         <div className="bg-white shadow-sm border border-gray-200">
           <ul className="divide-y divide-gray-100">
             {items.map((item) => {
