@@ -43,6 +43,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
   // Roles
   const [amIBoss, setAmIBoss] = useState(false); 
   const [currentUserRole, setCurrentUserRole] = useState(''); 
+  const [currentUserId, setCurrentUserId] = useState(''); // <--- 1. NEW STATE: Track User ID
   
   const [loading, setLoading] = useState(true);
 
@@ -95,6 +96,8 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
     // 1. Get User (Must happen first for Auth/Roles)
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
+      setCurrentUserId(user.id); // <--- 2. SAVE ID: So we know which shifts are yours
+      
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
@@ -264,15 +267,16 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
           amIBoss={amIBoss}
         />
 
-        {amIBoss && (
-          <div className="mt-6 flex flex-col gap-6">
-            <SwapRequests storeId={storeId} />
+        {/* --- 3. SWAP REQUESTS (Moved Outside amIBoss block) --- */}
+        <div className="mt-6 flex flex-col gap-6">
+          <SwapRequests storeId={storeId} />
+          {amIBoss && (
             <LaborSummary 
               shifts={currentWeekShifts} 
               amIBoss={amIBoss} 
             />
-          </div>
-        )}
+          )}
+        </div>
 
       </div>
 
@@ -301,6 +305,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
                           shift={shift} 
                           staffList={staffList}
                           amIBoss={amIBoss}
+                          currentUserId={currentUserId} // <--- 3. Pass ID
                           weekDays={weekDays} 
                           onDelete={fetchData}
                         />
@@ -353,6 +358,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
                         shift={shift} 
                         staffList={staffList}
                         amIBoss={amIBoss}
+                        currentUserId={currentUserId} // <--- 3. Pass ID
                         weekDays={weekDays} 
                         onDelete={fetchData}
                       />

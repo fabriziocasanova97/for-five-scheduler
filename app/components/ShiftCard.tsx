@@ -3,7 +3,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import EditShiftModal from './EditShiftModal';
 
 const supabase = createClient(
@@ -11,29 +11,21 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default function ShiftCard({ shift, amIBoss, weekDays }) {
+export default function ShiftCard({ shift, amIBoss, weekDays, currentUserId, onDelete }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
-  
-  // --- NEW STATE FOR SWAPS ---
-  const [myId, setMyId] = useState(null);
   const [processing, setProcessing] = useState(false);
 
-  // 1. GET CURRENT USER (To check ownership)
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) setMyId(user.id);
-    };
-    getUser();
-  }, []);
-
+  // --- ACTIONS ---
+  
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this shift?')) return;
     
     await supabase.from('shifts').delete().eq('id', shift.id);
     
-    window.location.reload(); 
+    // Call the parent refresh function instead of reloading the page
+    if (onDelete) onDelete();
+    else window.location.reload(); 
   };
 
   // --- SWAP HANDLERS ---
@@ -46,8 +38,13 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
       .update({ swap_status: 'offered' })
       .eq('id', shift.id);
 
-    if (error) alert(error.message);
-    else window.location.reload();
+    if (error) {
+      alert(error.message);
+      setProcessing(false);
+    } else {
+      if (onDelete) onDelete(); // Refresh Parent
+      else window.location.reload();
+    }
   };
 
   const handleCancelOffer = async () => {
@@ -57,12 +54,22 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
       .update({ swap_status: 'none', swap_candidate_id: null }) // Reset everything
       .eq('id', shift.id);
 
-    if (error) alert(error.message);
-    else window.location.reload();
+    if (error) {
+       alert(error.message);
+       setProcessing(false);
+    } else {
+       if (onDelete) onDelete(); // Refresh Parent
+       else window.location.reload();
+    }
   };
 
   // --- STYLE LOGIC ---
   const getShiftStyle = (shift) => {
+    // If it is offered for swap, highlight it slightly
+    if (shift.swap_status === 'offered') {
+       return 'bg-amber-50 border-2 border-dashed border-amber-400 text-amber-900';
+    }
+
     if (!shift.user_id) {
       return 'bg-blue-50 border-2 border-dashed border-blue-400 text-blue-900';
     }
@@ -84,7 +91,8 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
   const isOpenShift = !shift.user_id;
   
   // --- SWAP HELPERS ---
-  const isMyShift = myId === shift.user_id;
+  // We use the prop passed from parent (currentUserId) for instant check
+  const isMyShift = currentUserId === shift.user_id;
   const isOffered = shift.swap_status === 'offered';
   const isPending = shift.swap_status === 'pending_approval';
 
@@ -167,11 +175,11 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
           )}
         </div>
 
-        {/* SWAP STATUS INDICATORS (UPDATED) */}
+        {/* SWAP STATUS INDICATORS */}
         {isOffered && (
           <div className="mb-1">
              <span className="text-[10px] font-extrabold text-amber-600 uppercase tracking-widest">
-               ● Open Shift
+               ● Swap Offered
              </span>
           </div>
         )}
@@ -179,7 +187,7 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
         {isPending && (
           <div className="mb-1">
              <span className="text-[10px] font-extrabold text-purple-600 uppercase tracking-widest">
-               ● Pending Approval
+               ● Approval Pending
              </span>
           </div>
         )}
@@ -193,7 +201,7 @@ export default function ShiftCard({ shift, amIBoss, weekDays }) {
           {new Date(shift.end_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'})}
         </div>
 
-        {/* NEW: Note Display */}
+        {/* Note Display */}
         {shift.note && (
            <div className={`mt-1 text-[12px] font-semibold italic border-t pt-1 leading-tight break-words ${isOpenShift ? 'text-blue-800 border-blue-200' : 'text-gray-500 border-gray-200/50'}`}>
              "{shift.note}"

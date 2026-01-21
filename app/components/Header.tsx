@@ -17,35 +17,45 @@ export default function Header() {
   const [user, setUser] = useState(null);
   const [isManager, setIsManager] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [mounted, setMounted] = useState(false); // To prevent hydration mismatch
+  const [mounted, setMounted] = useState(false); 
+  
+  // --- MARKETPLACE ALERT STATE ---
+  const [hasOpenings, setHasOpenings] = useState(false);
 
   useEffect(() => {
     setMounted(true);
 
     const getUser = async () => {
-      // 1. Get initial User
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUser(user);
         checkRole(user.id);
+        checkMarketplace(); 
       }
     };
 
     getUser();
 
-    // 2. Listen for Auth Changes (Login/Logout)
+    // Poll every 60 seconds
+    const interval = setInterval(checkMarketplace, 60000);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         setUser(null);
         setIsManager(false);
-        router.push('/'); // Go back to Login Screen
+        setHasOpenings(false);
+        router.push('/'); 
       } else if (session?.user) {
         setUser(session.user);
         checkRole(session.user.id);
+        checkMarketplace();
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(interval);
+    };
   }, [router]);
 
   const checkRole = async (userId) => {
@@ -61,12 +71,31 @@ export default function Header() {
     }
   };
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    // The onAuthStateChange listener above will handle the redirect and UI update
+  // --- CHECK FOR OPEN SHIFTS (Next 7 Days) ---
+  const checkMarketplace = async () => {
+    const now = new Date();
+    const nextWeek = new Date();
+    nextWeek.setDate(now.getDate() + 7);
+
+    const { data } = await supabase
+      .from('shifts')
+      .select('id')
+      .or('user_id.is.null,swap_status.eq.offered') 
+      .gte('start_time', now.toISOString())
+      .lte('start_time', nextWeek.toISOString())
+      .limit(1); 
+    
+    if (data && data.length > 0) {
+      setHasOpenings(true);
+    } else {
+      setHasOpenings(false);
+    }
   };
 
-  // --- THE FIX: IF NO USER, SHOW NOTHING ---
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
   if (!mounted || !user) return null;
 
   return (
@@ -85,8 +114,13 @@ export default function Header() {
             Locations
           </Link>
           
-          <Link href="/marketplace" className="hover:text-gray-300 transition-colors">
+          {/* --- SHIFT BOARD LINK (With Static Dot) --- */}
+          <Link href="/marketplace" className="hover:text-gray-300 transition-colors flex items-center gap-1.5">
             Shift Board
+            {hasOpenings && (
+              // CHANGED: Removed 'animate-pulse'. Added 'ring-1 ring-black' for crispness.
+              <span className="block h-2 w-2 rounded-full bg-red-600 ring-1 ring-black" title="Open Shifts Available" />
+            )}
           </Link>
 
           <Link href="/availability" className="hover:text-gray-300 transition-colors">
@@ -99,14 +133,13 @@ export default function Header() {
             </Link>
           )}
 
-          {/* ADDED: STAFF LINK FOR MANAGERS */}
           {isManager && (
             <Link href="/staff" className="hover:text-gray-300 transition-colors">
               Staff
             </Link>
           )}
 
-          {/* NOTIFICATIONS */}
+          {/* NOTIFICATIONS (Managers Only) */}
           {isManager && (
             <div className="border-l border-gray-800 pl-6">
                <NotificationBell />
@@ -147,8 +180,12 @@ export default function Header() {
         {/* MOBILE MENU ICON */}
         <div className="md:hidden flex items-center gap-4">
            {isManager && <NotificationBell />}
-           <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-white">
+           <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-white relative">
              ☰
+             {/* Mobile Dot */}
+             {!isMenuOpen && hasOpenings && (
+                <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-600 border border-black" />
+             )}
            </button>
         </div>
 
@@ -158,12 +195,18 @@ export default function Header() {
       {isMenuOpen && (
         <div className="md:hidden absolute top-full left-0 w-full bg-black border-t border-gray-800 p-4 flex flex-col gap-4 shadow-xl">
            <Link href="/" onClick={() => setIsMenuOpen(false)} className="text-sm font-bold uppercase tracking-widest">Locations</Link>
-           <Link href="/marketplace" onClick={() => setIsMenuOpen(false)} className="text-sm font-bold uppercase tracking-widest">Shift Board</Link>
+           
+           <Link href="/marketplace" onClick={() => setIsMenuOpen(false)} className="text-sm font-bold uppercase tracking-widest flex items-center justify-between">
+             Shift Board
+             {hasOpenings && (
+               <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded-full">New Openings</span>
+             )}
+           </Link>
+           
            <Link href="/availability" onClick={() => setIsMenuOpen(false)} className="text-sm font-bold uppercase tracking-widest">Availability</Link>
            
            {isManager && <Link href="/overview" onClick={() => setIsMenuOpen(false)} className="text-sm font-bold uppercase tracking-widest">Master View</Link>}
            
-           {/* ADDED: STAFF LINK FOR MANAGERS MOBILE */}
            {isManager && <Link href="/staff" onClick={() => setIsMenuOpen(false)} className="text-sm font-bold uppercase tracking-widest">Staff</Link>}
            
            <button onClick={handleSignOut} className="text-left text-sm font-bold uppercase tracking-widest text-red-500">Sign Out</button>
