@@ -118,7 +118,6 @@ export default function Header() {
           <Link href="/marketplace" className="hover:text-gray-300 transition-colors flex items-center gap-1.5">
             Shift Board
             {hasOpenings && (
-              // CHANGED: Removed 'animate-pulse'. Added 'ring-1 ring-black' for crispness.
               <span className="block h-2 w-2 rounded-full bg-red-600 ring-1 ring-black" title="Open Shifts Available" />
             )}
           </Link>
@@ -139,12 +138,10 @@ export default function Header() {
             </Link>
           )}
 
-          {/* NOTIFICATIONS (Managers Only) */}
-          {isManager && (
-            <div className="border-l border-gray-800 pl-6">
-               <NotificationBell />
-            </div>
-          )}
+          {/* NOTIFICATIONS - NOW VISIBLE TO EVERYONE */}
+          <div className="border-l border-gray-800 pl-6">
+             <NotificationBell />
+          </div>
 
           {/* USER AVATAR */}
           <div className="relative ml-4">
@@ -179,7 +176,9 @@ export default function Header() {
 
         {/* MOBILE MENU ICON */}
         <div className="md:hidden flex items-center gap-4">
-           {isManager && <NotificationBell />}
+           {/* MOBILE NOTIFICATIONS - VISIBLE TO EVERYONE */}
+           <NotificationBell />
+           
            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-white relative">
              ☰
              {/* Mobile Dot */}

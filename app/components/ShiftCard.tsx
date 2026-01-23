@@ -63,9 +63,32 @@ export default function ShiftCard({ shift, amIBoss, weekDays, currentUserId, onD
     }
   };
 
+  // --- NEW: DISMISS DENIAL ---
+  const handleDismissDenial = async () => {
+    setProcessing(true);
+    // Reset status to 'none' (Normal) so the red error goes away
+    const { error } = await supabase
+      .from('shifts')
+      .update({ swap_status: 'none' }) 
+      .eq('id', shift.id);
+
+    if (error) {
+       alert(error.message);
+       setProcessing(false);
+    } else {
+       if (onDelete) onDelete();
+       else window.location.reload();
+    }
+  };
+
   // --- STYLE LOGIC ---
   const getShiftStyle = (shift) => {
-    // If it is offered for swap, highlight it slightly
+    // 1. Priority: Denied (Red Error State)
+    if (shift.swap_status === 'denied') {
+        return 'bg-red-50 border-2 border-red-500 text-red-900';
+    }
+
+    // 2. If it is offered for swap, highlight it slightly
     if (shift.swap_status === 'offered') {
        return 'bg-amber-50 border-2 border-dashed border-amber-400 text-amber-900';
     }
@@ -95,6 +118,7 @@ export default function ShiftCard({ shift, amIBoss, weekDays, currentUserId, onD
   const isMyShift = currentUserId === shift.user_id;
   const isOffered = shift.swap_status === 'offered';
   const isPending = shift.swap_status === 'pending_approval';
+  const isDenied = shift.swap_status === 'denied'; // <--- Check for Flag
 
   return (
     <>
@@ -126,7 +150,7 @@ export default function ShiftCard({ shift, amIBoss, weekDays, currentUserId, onD
         {!amIBoss && isMyShift && (
           <div className="absolute top-1 right-1 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-1 bg-white/90 border border-gray-200 rounded px-1 backdrop-blur-sm">
              {/* If NO swap active, show OFFER icon (Cycle Arrows) */}
-             {!isOffered && !isPending && (
+             {!isOffered && !isPending && !isDenied && (
                <button 
                  onClick={handleOfferSwap}
                  disabled={processing}
@@ -150,6 +174,18 @@ export default function ShiftCard({ shift, amIBoss, weekDays, currentUserId, onD
                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                  </svg>
+               </button>
+             )}
+
+             {/* If DENIED, show DISMISS Button */}
+             {isDenied && (
+               <button 
+                 onClick={handleDismissDenial}
+                 disabled={processing}
+                 title="Dismiss Alert"
+                 className="text-red-600 hover:text-black transition-colors p-1 hover:scale-110 disabled:opacity-50"
+               >
+                 <span className="text-[10px] font-bold uppercase border border-red-200 px-1 bg-white rounded">Dismiss</span>
                </button>
              )}
           </div>
@@ -188,6 +224,15 @@ export default function ShiftCard({ shift, amIBoss, weekDays, currentUserId, onD
           <div className="mb-1">
              <span className="text-[10px] font-extrabold text-purple-600 uppercase tracking-widest">
                ● Approval Pending
+             </span>
+          </div>
+        )}
+
+        {/* NEW: DENIED INDICATOR */}
+        {isDenied && (
+          <div className="mb-1">
+             <span className="text-[10px] font-extrabold text-red-700 uppercase tracking-widest flex items-center gap-1">
+               <span>⚠️</span> Swap Rejected
              </span>
           </div>
         )}

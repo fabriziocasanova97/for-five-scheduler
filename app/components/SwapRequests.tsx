@@ -19,6 +19,7 @@ export default function SwapRequests({ storeId }) {
   }, [storeId]);
 
   const fetchRequests = async () => {
+    // Only fetch items waiting for manager approval
     const { data: rawShifts, error } = await supabase
       .from('shifts')
       .select('*')
@@ -37,6 +38,7 @@ export default function SwapRequests({ storeId }) {
       return;
     }
 
+    // Resolve Names
     const userIds = new Set();
     rawShifts.forEach(s => {
       if (s.user_id) userIds.add(s.user_id);
@@ -65,6 +67,8 @@ export default function SwapRequests({ storeId }) {
     if (!confirm("Approve this swap? The schedule will update immediately.")) return;
     setProcessing(shift.id);
 
+    // 1. Swap the user_id
+    // 2. Reset status to normal ('none')
     const { error } = await supabase
       .from('shifts')
       .update({
@@ -78,20 +82,24 @@ export default function SwapRequests({ storeId }) {
     else window.location.reload();
   };
 
+  // --- CHANGED: DENY LOGIC ---
   const handleDeny = async (shift) => {
     if (!confirm("Deny this request?")) return;
     setProcessing(shift.id);
 
+    // Instead of resetting to 'none', we set to 'denied'.
+    // This allows us to show the "Swap Rejected" error to the Barista.
     const { error } = await supabase
       .from('shifts')
       .update({
-        swap_status: 'none',
-        swap_candidate_id: null
+        swap_status: 'denied',     // <--- The Sticky Error Flag
+        swap_candidate_id: null    // Clear the candidate who was rejected
       })
       .eq('id', shift.id);
 
     if (error) alert("Error denying: " + error.message);
     else {
+      // Remove from this list locally (it's no longer 'pending')
       setRequests(prev => prev.filter(r => r.id !== shift.id));
       setProcessing('');
     }
@@ -103,7 +111,7 @@ export default function SwapRequests({ storeId }) {
   return (
     <div className="mb-6 bg-purple-50 border-2 border-purple-200 rounded-lg p-4 animate-in slide-in-from-top-2">
       <h3 className="text-purple-900 font-extrabold uppercase tracking-widest text-sm mb-3 flex items-center gap-2">
-        <span className="text-lg animate-pulse">🔔</span> Pending Approvals
+        <span className="text-lg">🔔</span> Pending Approvals
       </h3>
 
       <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
