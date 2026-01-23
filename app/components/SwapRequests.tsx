@@ -55,7 +55,9 @@ export default function SwapRequests({ storeId }) {
 
     const finalData = rawShifts.map(s => ({
       ...s,
-      owner_name: namesMap[s.user_id] || 'Unknown',
+      // CHANGED: Logic to handle Open Shifts vs. Swaps
+      // If user_id is null, it's an Open Shift Claim. Otherwise, it's a person.
+      owner_name: s.user_id ? (namesMap[s.user_id] || 'Unknown') : 'OPEN SHIFT',
       candidate_name: namesMap[s.swap_candidate_id] || 'Unknown'
     }));
 
@@ -64,10 +66,10 @@ export default function SwapRequests({ storeId }) {
   };
 
   const handleApprove = async (shift) => {
-    if (!confirm("Approve this swap? The schedule will update immediately.")) return;
+    if (!confirm("Approve this request? The schedule will update immediately.")) return;
     setProcessing(shift.id);
 
-    // 1. Swap the user_id
+    // 1. Swap (or Assign) the user_id
     // 2. Reset status to normal ('none')
     const { error } = await supabase
       .from('shifts')
@@ -82,13 +84,12 @@ export default function SwapRequests({ storeId }) {
     else window.location.reload();
   };
 
-  // --- CHANGED: DENY LOGIC ---
+  // --- DENY LOGIC ---
   const handleDeny = async (shift) => {
     if (!confirm("Deny this request?")) return;
     setProcessing(shift.id);
 
     // Instead of resetting to 'none', we set to 'denied'.
-    // This allows us to show the "Swap Rejected" error to the Barista.
     const { error } = await supabase
       .from('shifts')
       .update({
@@ -119,6 +120,9 @@ export default function SwapRequests({ storeId }) {
            const dateStr = new Date(req.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
            const timeStr = `${new Date(req.start_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'})} - ${new Date(req.end_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'})}`;
 
+           // Helper: Check if this is an open shift claim for styling
+           const isOpenClaim = req.owner_name === 'OPEN SHIFT';
+
            return (
              <div key={req.id} className="bg-white border border-purple-200 p-4 rounded shadow-sm flex flex-col gap-2">
                
@@ -132,10 +136,14 @@ export default function SwapRequests({ storeId }) {
 
                {/* Who is swapping? */}
                <div className="flex items-center justify-between text-sm gap-2 bg-gray-50 p-2 rounded">
-                 <div className="text-gray-900 font-bold truncate w-1/2 text-right text-xs">
+                 {/* LEFT SIDE: OWNER OR 'OPEN SHIFT' */}
+                 <div className={`truncate w-1/2 text-right text-xs ${isOpenClaim ? 'text-blue-600 font-extrabold tracking-widest' : 'text-gray-900 font-bold'}`}>
                    {req.owner_name}
                  </div>
+                 
                  <div className="text-gray-400 text-[10px]">➔</div>
+                 
+                 {/* RIGHT SIDE: CANDIDATE */}
                  <div className="text-purple-700 font-bold truncate w-1/2 text-left text-xs">
                    {req.candidate_name}
                  </div>

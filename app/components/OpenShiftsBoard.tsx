@@ -27,7 +27,8 @@ export default function OpenShiftsBoard() {
     today.setHours(0,0,0,0);
     const todayIso = today.toISOString();
 
-    // Fetch Open Shifts OR Swap Offers
+    // 1. Fetch EVERYTHING (Open Shifts OR Swap Offers)
+    // We do NOT filter by 'pending_approval' here because that hides NULL rows (Open Shifts).
     const { data } = await supabase
       .from('shifts')
       .select('*, stores(name), profiles(full_name)') 
@@ -35,7 +36,13 @@ export default function OpenShiftsBoard() {
       .or('user_id.is.null,swap_status.eq.offered')
       .order('start_time', { ascending: true });
 
-    if (data) setOpenShifts(data);
+    if (data) {
+      // 2. Filter in JavaScript
+      // We manually remove any shift that is currently waiting for manager approval
+      // This keeps the "NULL" status shifts (Open Shifts) visible.
+      const visibleShifts = data.filter(s => s.swap_status !== 'pending_approval');
+      setOpenShifts(visibleShifts);
+    }
     setLoading(false);
   };
 
@@ -74,32 +81,53 @@ export default function OpenShiftsBoard() {
     setProcessing('');
   };
 
+  // --- CLAIM REQUEST LOGIC ---
   const handleDirectClaim = async (shift: any) => {
-    if (!confirm('Are you sure you want to claim this shift?')) return;
+    if (!confirm('Request to claim this shift? It will require manager approval.')) return;
     setProcessing(shift.id);
 
-    const { data: check } = await supabase.from('shifts').select('user_id').eq('id', shift.id).single();
+    // 1. Check if it's still available
+    const { data: check } = await supabase
+        .from('shifts')
+        .select('user_id, swap_status')
+        .eq('id', shift.id)
+        .single();
+    
     if (check?.user_id) {
       alert("Too slow! Someone else just claimed this shift.");
       fetchOpenShifts();
       setProcessing('');
       return;
     }
+    if (check?.swap_status === 'pending_approval') {
+        alert("Someone else has already requested this shift.");
+        fetchOpenShifts();
+        setProcessing('');
+        return;
+    }
 
+    // 2. Conflict Check
     const hasConflict = await checkConflicts(shift.start_time, shift.end_time);
     if (hasConflict) {
       setProcessing('');
       return;
     }
 
-    const { error } = await supabase.from('shifts').update({ user_id: myId }).eq('id', shift.id);
+    // 3. Send Request (Candidate + Pending Status)
+    const { error } = await supabase
+        .from('shifts')
+        .update({ 
+            swap_candidate_id: myId,    
+            swap_status: 'pending_approval' 
+            // user_id stays NULL until approved
+        })
+        .eq('id', shift.id);
 
     if (error) {
       alert("Error claiming shift");
     } else {
       setOpenShifts(prev => prev.filter(s => s.id !== shift.id));
-      alert("Shift claimed! It is now on your schedule.");
-      window.location.reload(); 
+      alert("Claim request sent! You will be notified when approved.");
     }
     setProcessing('');
   };
@@ -121,7 +149,6 @@ export default function OpenShiftsBoard() {
 
   if (loading) return null; 
   
-  // Filter out my own swap offers
   const availableShifts = openShifts.filter(s => s.user_id !== myId);
 
   return (
@@ -130,9 +157,8 @@ export default function OpenShiftsBoard() {
       {/* HEADER */}
       <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
         <div className="flex items-center gap-3">
-            <div className={`relative flex h-3 w-3 ${availableShifts.length === 0 ? 'hidden' : ''}`}>
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+            <div className={`relative flex h-2 w-2 ${availableShifts.length === 0 ? 'hidden' : ''}`}>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
             </div>
             <div>
                 <h3 className="text-sm font-extrabold uppercase tracking-widest text-gray-900">
@@ -144,14 +170,12 @@ export default function OpenShiftsBoard() {
 
       {/* CONTENT */}
       {availableShifts.length === 0 ? (
-        // EMPTY STATE MESSAGE
         <div className="p-8 text-center bg-white">
           <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">
-            No open shifts
+            No open shifts available
           </p>
         </div>
       ) : (
-        // GRID
         <div className="p-4 grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {availableShifts.map((shift: any) => {
             const dateObj = new Date(shift.start_time);
@@ -207,7 +231,7 @@ export default function OpenShiftsBoard() {
                   disabled={processing === shift.id}
                   className={`mt-3 w-full font-bold uppercase tracking-widest text-[10px] py-3 rounded transition-colors disabled:opacity-50 text-white ${isSwap ? 'bg-amber-600 hover:bg-amber-700' : 'bg-black hover:bg-gray-800'}`}
                 >
-                  {processing === shift.id ? 'Processing...' : (isSwap ? 'Request to Swap' : 'Claim Shift')}
+                  {processing === shift.id ? 'Processing...' : (isSwap ? 'Request to Swap' : 'Request to Claim')}
                 </button>
               </div>
             );
