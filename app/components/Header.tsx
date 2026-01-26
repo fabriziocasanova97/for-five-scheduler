@@ -116,7 +116,7 @@ export default function Header() {
           
           {/* --- SHIFT BOARD LINK (With Static Dot) --- */}
           <Link href="/marketplace" className="hover:text-gray-300 transition-colors flex items-center gap-1.5">
-            Shift Board
+            Open Shifts
             {hasOpenings && (
               <span className="block h-2 w-2 rounded-full bg-red-600 ring-1 ring-black" title="Open Shifts Available" />
             )}
@@ -196,7 +196,7 @@ export default function Header() {
            <Link href="/" onClick={() => setIsMenuOpen(false)} className="text-sm font-bold uppercase tracking-widest">Locations</Link>
            
            <Link href="/marketplace" onClick={() => setIsMenuOpen(false)} className="text-sm font-bold uppercase tracking-widest flex items-center justify-between">
-             Shift Board
+             Open Shifts
              {hasOpenings && (
                <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded-full">New Openings</span>
              )}
