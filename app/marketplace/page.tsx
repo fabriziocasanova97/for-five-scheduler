@@ -12,10 +12,11 @@ export default function MarketplacePage() {
       */}
       <div className="max-w-5xl mx-auto px-6 pt-10 pb-4">
         <h1 className="text-3xl font-extrabold text-gray-900 uppercase tracking-widest">
-          Shift Board
+          Open Shifts
         </h1>
+        {/* CHANGED: Updated subtitle to be more descriptive (Option 1) */}
         <p className="text-xs text-gray-500 uppercase tracking-widest mt-1">
-           Available Shifts & Swap Requests
+           Marketplace for pickups and swaps
         </p>
       </div>
 

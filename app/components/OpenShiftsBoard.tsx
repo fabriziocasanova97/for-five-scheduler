@@ -28,7 +28,6 @@ export default function OpenShiftsBoard() {
     const todayIso = today.toISOString();
 
     // 1. Fetch EVERYTHING (Open Shifts OR Swap Offers)
-    // We do NOT filter by 'pending_approval' here because that hides NULL rows (Open Shifts).
     const { data } = await supabase
       .from('shifts')
       .select('*, stores(name), profiles(full_name)') 
@@ -38,8 +37,6 @@ export default function OpenShiftsBoard() {
 
     if (data) {
       // 2. Filter in JavaScript
-      // We manually remove any shift that is currently waiting for manager approval
-      // This keeps the "NULL" status shifts (Open Shifts) visible.
       const visibleShifts = data.filter(s => s.swap_status !== 'pending_approval');
       setOpenShifts(visibleShifts);
     }
@@ -151,32 +148,21 @@ export default function OpenShiftsBoard() {
   
   const availableShifts = openShifts.filter(s => s.user_id !== myId);
 
+  // CHANGED: Removed the outer border/shadow wrapper and the inner header.
+  // The cards now sit directly on the page background.
   return (
-    <div className="mb-8 bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+    <div className="mb-8">
       
-      {/* HEADER */}
-      <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-            <div className={`relative flex h-2 w-2 ${availableShifts.length === 0 ? 'hidden' : ''}`}>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-            </div>
-            <div>
-                <h3 className="text-sm font-extrabold uppercase tracking-widest text-gray-900">
-                Open Shifts & Swaps
-                </h3>
-            </div>
-        </div>
-      </div>
-
       {/* CONTENT */}
       {availableShifts.length === 0 ? (
-        <div className="p-8 text-center bg-white">
+        <div className="p-12 text-center bg-white rounded shadow-sm border border-gray-100">
           <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">
             No open shifts available
           </p>
         </div>
       ) : (
-        <div className="p-4 grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        /* Removed p-4 to align perfectly with the page margins */
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {availableShifts.map((shift: any) => {
             const dateObj = new Date(shift.start_time);
             const dateStr = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -187,11 +173,11 @@ export default function OpenShiftsBoard() {
             return (
               <div 
                 key={shift.id} 
-                className={`bg-white p-4 rounded shadow-sm hover:shadow-md transition-all flex flex-col gap-2 relative border-l-4 ${isSwap ? 'border-l-amber-500' : 'border-l-blue-600'}`}
+                className={`bg-white p-5 rounded shadow-sm hover:shadow-md transition-all flex flex-col gap-2 relative border-l-4 ${isSwap ? 'border-l-amber-500' : 'border-l-blue-600'}`}
               >
                 
                 {/* TYPE BADGE */}
-                <div className="absolute top-3 right-3">
+                <div className="absolute top-4 right-4">
                    {isSwap ? (
                      <span className="text-[9px] font-extrabold text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100 uppercase tracking-widest">
                        Swap
@@ -205,7 +191,7 @@ export default function OpenShiftsBoard() {
 
                 <div className="pr-12">
                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{dateStr}</p>
-                   <p className="font-extrabold text-gray-900 text-lg leading-none">{shift.stores?.name}</p>
+                   <p className="font-extrabold text-gray-900 text-xl leading-tight">{shift.stores?.name}</p>
                    {isSwap && (
                       <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase">
                         From: {shift.profiles?.full_name}
@@ -218,7 +204,7 @@ export default function OpenShiftsBoard() {
                 </div>
 
                 {shift.note && (
-                   <div className="bg-gray-50 border border-gray-100 p-2 rounded text-[10px] italic text-gray-500 mt-1">
+                   <div className="bg-gray-50 border border-gray-100 p-2 rounded text-[10px] italic text-gray-500 mt-2">
                      "{shift.note}"
                    </div>
                 )}
@@ -229,7 +215,7 @@ export default function OpenShiftsBoard() {
                     handleAction(shift);
                   }}
                   disabled={processing === shift.id}
-                  className={`mt-3 w-full font-bold uppercase tracking-widest text-[10px] py-3 rounded transition-colors disabled:opacity-50 text-white ${isSwap ? 'bg-amber-600 hover:bg-amber-700' : 'bg-black hover:bg-gray-800'}`}
+                  className={`mt-4 w-full font-bold uppercase tracking-widest text-[10px] py-3 rounded transition-colors disabled:opacity-50 text-white ${isSwap ? 'bg-amber-600 hover:bg-amber-700' : 'bg-black hover:bg-gray-800'}`}
                 >
                   {processing === shift.id ? 'Processing...' : (isSwap ? 'Request to Swap' : 'Request to Claim')}
                 </button>
