@@ -139,7 +139,20 @@ export default function Header() {
 
   return (
     <>
-      <header className="bg-black text-white py-4 sticky top-0 z-50 shadow-md">
+      {/* MOBILE BACKDROP (MOVED UP):
+         Placed before <header> but with z-[100].
+         Since <header> also has z-[100] and comes AFTER in the DOM,
+         the header will sit on top of this backdrop, keeping the menu button clickable.
+      */}
+      {isMenuOpen && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black/20 md:hidden" 
+          onClick={() => setIsMenuOpen(false)}
+        />
+      )}
+
+      {/* HEADER: Z-INDEX INCREASED TO 100 */}
+      <header className="bg-black text-white py-4 sticky top-0 z-[100] shadow-md">
         <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
           
           {/* LOGO */}
@@ -194,8 +207,11 @@ export default function Header() {
 
               {isMenuOpen && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)}></div>
-                  <div className="absolute right-0 mt-3 w-64 bg-white text-black rounded-sm border-2 border-black shadow-2xl z-50 animate-in fade-in slide-in-from-top-1 overflow-hidden">
+                  {/* DESKTOP BACKDROP: Z-[100] */}
+                  <div className="fixed inset-0 z-[100]" onClick={() => setIsMenuOpen(false)}></div>
+                  
+                  {/* DESKTOP MENU: Z-[101] (On top of everything) */}
+                  <div className="absolute right-0 mt-3 w-64 bg-white text-black rounded-sm border-2 border-black shadow-2xl z-[101] animate-in fade-in slide-in-from-top-1 overflow-hidden">
                     <div className="px-5 py-4 border-b border-gray-100">
                       <p className="text-sm font-extrabold uppercase tracking-wide truncate">
                           {userProfile.fullName}
@@ -247,11 +263,9 @@ export default function Header() {
 
         </div>
 
-        {/* --- MOBILE GLASSMORPHISM MENU (Option 3) --- */}
-        {/* We use 'absolute top-full' so it pushes content or overlays depending on z-index. 
-            Here we overlay with z-40. */}
+        {/* --- MOBILE GLASSMORPHISM MENU (Z-INDEX INCREASED TO 101) --- */}
         {isMenuOpen && (
-          <div className="md:hidden absolute top-full left-0 w-full bg-black/95 backdrop-blur-xl border-t border-white/10 shadow-2xl animate-in slide-in-from-top-4 duration-200 z-40">
+          <div className="md:hidden absolute top-full left-0 w-full bg-black/95 backdrop-blur-xl border-t border-white/10 shadow-2xl animate-in slide-in-from-top-4 duration-200 z-[101]">
              
              {/* LINKS SECTION */}
              <div className="flex flex-col p-6 space-y-6">
@@ -305,14 +319,6 @@ export default function Header() {
           </div>
         )}
       </header>
-      
-      {/* Backdrop for outside click (optional but good for UX) */}
-      {isMenuOpen && (
-        <div 
-          className="fixed inset-0 z-30 bg-black/20 md:hidden" 
-          onClick={() => setIsMenuOpen(false)}
-        />
-      )}
     </>
   );
 }

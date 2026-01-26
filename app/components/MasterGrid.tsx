@@ -18,6 +18,22 @@ const getLocalISOString = (date: any) => {
   return `${year}-${month}-${day}`;
 };
 
+// --- NEW HELPER: COMPACT TIME FORMAT (e.g. "7a", "3:30p") ---
+const formatCompactTime = (dateStr: string) => {
+  const date = new Date(dateStr);
+  let hours = date.getHours();
+  const minutes = date.getMinutes();
+  const ampm = hours >= 12 ? 'p' : 'a';
+  hours = hours % 12;
+  hours = hours ? hours : 12; // the hour '0' should be '12'
+  
+  if (minutes === 0) {
+    return `${hours}${ampm}`;
+  }
+  const minutesStr = minutes < 10 ? '0' + minutes : minutes;
+  return `${hours}:${minutesStr}${ampm}`;
+};
+
 interface MasterGridProps {
   stores: any[];
   shifts: any[];
@@ -27,20 +43,23 @@ interface MasterGridProps {
 
 export default function MasterGrid({ stores, shifts, weekDays, todayIso }: MasterGridProps) {
 
-  // --- COLOR LOGIC ---
+  // --- UPDATED COLOR LOGIC ---
   const getShiftStyle = (shift: any) => {
+    // 1. OPEN SHIFT: Red Alert Style
     if (!shift.user_id) {
-       return 'bg-blue-50 border-2 border-dashed border-blue-400 text-blue-900';
+       return 'bg-red-50 border-2 border-dashed border-red-300 text-red-900 hover:bg-red-100';
     }
 
     const role = shift.profiles?.role?.trim();
     const isManager = role === 'Manager' || role === 'Operations';
 
-    if (isManager) return 'bg-white border-2 border-purple-600 text-gray-900';
+    // 2. MANAGER: Added bg-purple-50 tint
+    if (isManager) return 'bg-purple-50 border-2 border-purple-600 text-gray-900';
 
     const dateObj = new Date(shift.start_time);
     const hour = dateObj.getHours(); 
 
+    // Standard Staff Shifts
     if (hour < 7) return 'bg-white border-2 border-emerald-500 text-gray-900'; 
     if (hour < 10) return 'bg-white border-2 border-blue-500 text-gray-900'; 
     return 'bg-white border-2 border-orange-500 text-gray-900'; 
@@ -91,7 +110,6 @@ export default function MasterGrid({ stores, shifts, weekDays, todayIso }: Maste
 
                   {/* Shift Cells */}
                   {weekDays.map(day => {
-                    // Filter shifts for this specific cell (Store + Day)
                     const dayShifts = shifts.filter(s => {
                        const shiftDate = new Date(s.start_time);
                        const shiftIso = getLocalISOString(shiftDate);
@@ -105,15 +123,16 @@ export default function MasterGrid({ stores, shifts, weekDays, todayIso }: Maste
                       <td key={day.isoDate} className={`p-2 border-b-4 border-r border-gray-200 align-top min-h-[120px] transition-colors ${isToday ? 'bg-blue-50/30' : ''}`}>
                         <div className="flex flex-col gap-2 h-full">
                           {dayShifts.length === 0 ? (
-                             <div className="flex-1 flex items-center justify-center">
-                               <span className="text-gray-200 text-xl font-light">·</span>
-                             </div>
+                             // 3. CLEAN EMPTY STATE: Render nothing if empty
+                             null
                           ) : (
                             dayShifts.map((shift: any) => {
                               const role = shift.profiles?.role?.trim();
                               const isManager = role === 'Manager' || role === 'Operations';
-                              const start = new Date(shift.start_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
-                              const end = new Date(shift.end_time).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
+                              
+                              // 4. COMPACT TIME
+                              const start = formatCompactTime(shift.start_time);
+                              const end = formatCompactTime(shift.end_time);
                               
                               const isOpenShift = !shift.user_id;
                               const cardStyle = getShiftStyle(shift);
@@ -122,34 +141,37 @@ export default function MasterGrid({ stores, shifts, weekDays, todayIso }: Maste
                                 <Link 
                                   key={shift.id} 
                                   href={`/store/${store.id}`} 
-                                  className={`text-xs p-2 rounded flex flex-col hover:brightness-95 transition-all cursor-pointer ${cardStyle}`}
+                                  className={`relative text-xs p-2 rounded flex flex-col hover:brightness-95 transition-all cursor-pointer ${cardStyle}`}
                                 >
-                                  <div className="font-bold uppercase tracking-wide truncate w-full flex items-center gap-1">
-                                    {isOpenShift ? (
-                                      <span className="text-blue-700 font-extrabold tracking-widest text-[10px]">
-                                        ● OPEN
-                                      </span>
-                                    ) : (
-                                      <>
-                                        {isManager && (
-                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-purple-600 flex-shrink-0">
-                                            <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
-                                          </svg>
-                                        )}
-                                        {shift.profiles?.full_name?.split(' ')[0]}
-                                      </>
+                                  <div className="font-bold uppercase tracking-wide truncate w-full flex items-center justify-between gap-1">
+                                    <span className="truncate">
+                                      {isOpenShift ? (
+                                        <span className="text-red-700 font-extrabold tracking-widest text-[9px]">
+                                          ⚠ OPEN
+                                        </span>
+                                      ) : (
+                                        <>
+                                          {isManager && (
+                                            <span className="mr-1 text-purple-700">★</span>
+                                          )}
+                                          {shift.profiles?.full_name?.split(' ')[0]}
+                                        </>
+                                      )}
+                                    </span>
+                                    
+                                    {/* 5. NOTE ICON: Only shows if note exists */}
+                                    {shift.note && (
+                                      <div title={shift.note} className="flex-shrink-0">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-3 h-3 ${isOpenShift ? 'text-red-400' : 'text-gray-400'} hover:text-black`}>
+                                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
+                                        </svg>
+                                      </div>
                                     )}
                                   </div>
 
-                                  <div className="text-[10px] font-medium opacity-80 mt-0.5 tracking-tight">
-                                    {start} - {end}
+                                  <div className="text-[10px] font-medium opacity-80 mt-0.5 tracking-tight flex justify-between">
+                                    <span>{start}-{end}</span>
                                   </div>
-
-                                  {shift?.note && (
-                                     <div className={`mt-1 text-[9px] font-semibold italic border-t pt-0.5 leading-tight break-words ${isOpenShift ? 'text-blue-800 border-blue-200' : 'text-gray-500 border-gray-200/50'}`}>
-                                       {shift.note}
-                                     </div>
-                                  )}
 
                                 </Link>
                               );

@@ -6,12 +6,18 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
 import { isBoss } from '@/app/utils/roles';
-import MasterGrid from '@/app/components/MasterGrid'; // IMPORT THE NEW GRID
+import MasterGrid from '@/app/components/MasterGrid'; 
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+// --- ROW DOT COLORS ---
+const ROW_COLORS = [
+  'bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 
+  'bg-orange-500', 'bg-cyan-500', 'bg-rose-500', 'bg-indigo-500'
+];
 
 const getLocalISOString = (date: Date) => {
   const year = date.getFullYear();
@@ -26,9 +32,11 @@ function OverviewContent() {
 
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
+  
   const [stores, setStores] = useState([]);
   const [shifts, setShifts] = useState([]);
-  
+  const [visibleStoreIds, setVisibleStoreIds] = useState<string[]>([]);
+
   // --- DATE MATH ---
   const anchorDate = queryDate ? new Date(queryDate + 'T12:00:00') : new Date();
   const dayOfWeek = anchorDate.getDay();
@@ -70,7 +78,9 @@ function OverviewContent() {
       setAuthorized(true);
 
       const { data: storesData } = await supabase.from('stores').select('*').order('name');
-      setStores(storesData || []);
+      const allStores = storesData || [];
+      setStores(allStores);
+      setVisibleStoreIds(allStores.map((s: any) => s.id));
 
       const weekStart = weekDays[0].isoDate;
       const weekEnd = new Date(weekDays[6].isoDate);
@@ -116,6 +126,19 @@ function OverviewContent() {
     fetchData();
   }, [queryDate]);
 
+  const toggleStore = (id: string) => {
+    setVisibleStoreIds(prev => 
+      prev.includes(id) 
+        ? prev.filter(storeId => storeId !== id) 
+        : [...prev, id]
+    );
+  };
+
+  const selectAll = () => setVisibleStoreIds(stores.map((s: any) => s.id));
+  const clearAll = () => setVisibleStoreIds([]);
+
+  const filteredStores = stores.filter((s: any) => visibleStoreIds.includes(s.id));
+
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-white text-sm font-bold uppercase tracking-widest">Loading...</div>;
   if (!authorized) return <div className="p-12 text-center text-red-600 font-bold uppercase tracking-widest">🚫 Access Denied</div>;
 
@@ -155,9 +178,57 @@ function OverviewContent() {
         </div>
       </div>
 
-      {/* RENDER THE GRID COMPONENT HERE */}
+      {/* --- FILTER BAR (ALIGNED) --- */}
+      <div className="border-b border-gray-200 bg-gray-50/50 flex-shrink-0 z-40">
+        <div className="max-w-[1800px] mx-auto flex h-14">
+            
+            {/* Left Column (Aligns with Store Name Column: w-40) */}
+            <div className="w-40 flex-shrink-0 border-r border-gray-300 flex items-center justify-center gap-3 px-4 bg-gray-100/50">
+                <button 
+                  onClick={selectAll}
+                  className="text-[10px] font-extrabold uppercase tracking-widest text-black hover:text-gray-600 transition-colors"
+                >
+                  All
+                </button>
+                <span className="text-gray-300">|</span>
+                <button 
+                  onClick={clearAll}
+                  className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 hover:text-red-600 transition-colors"
+                >
+                  Clear
+                </button>
+            </div>
+
+            {/* Right Column (Aligns with Dates: Flex-1) */}
+            <div className="flex-1 flex items-center gap-2 px-4 overflow-x-auto scrollbar-hide">
+                {stores.map((store: any, index: number) => {
+                    const isVisible = visibleStoreIds.includes(store.id);
+                    const dotColorClass = ROW_COLORS[index % ROW_COLORS.length];
+
+                    return (
+                        <button
+                            key={store.id}
+                            onClick={() => toggleStore(store.id)}
+                            className={`
+                                flex items-center gap-2 px-3 py-1.5 rounded-sm border text-[10px] font-bold uppercase tracking-widest transition-all duration-200 flex-shrink-0
+                                ${isVisible 
+                                    ? 'bg-black border-black text-white shadow-sm' 
+                                    : 'bg-white border-gray-300 text-gray-400 hover:border-black hover:text-black'
+                                }
+                            `}
+                        >
+                            <div className={`w-1.5 h-1.5 rounded-full ${dotColorClass} ${isVisible ? 'ring-1 ring-white' : ''}`} />
+                            <span>{store.name}</span>
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+      </div>
+
+      {/* RENDER THE GRID */}
       <MasterGrid 
-        stores={stores} 
+        stores={filteredStores} 
         shifts={shifts} 
         weekDays={weekDays} 
         todayIso={todayIso} 

@@ -43,7 +43,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
   // Roles
   const [amIBoss, setAmIBoss] = useState(false); 
   const [currentUserRole, setCurrentUserRole] = useState(''); 
-  const [currentUserId, setCurrentUserId] = useState(''); // <--- 1. NEW STATE: Track User ID
+  const [currentUserId, setCurrentUserId] = useState('');
   
   const [loading, setLoading] = useState(true);
 
@@ -91,12 +91,11 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
     s.start_time >= weekStartStr && s.start_time < weekEndStr
   );
 
-  // --- 2. OPTIMIZED FETCH DATA (PARALLEL REQUESTS) ---
+  // --- 2. OPTIMIZED FETCH DATA ---
   const fetchData = async () => {
-    // 1. Get User (Must happen first for Auth/Roles)
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      setCurrentUserId(user.id); // <--- 2. SAVE ID: So we know which shifts are yours
+      setCurrentUserId(user.id);
       
       const { data: profile } = await supabase
         .from('profiles')
@@ -109,7 +108,6 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
       setCurrentUserRole(role); 
     }
 
-    // 2. PREPARE REQUESTS (Start them all at once)
     const fetchStart = new Date(currentMonday);
     fetchStart.setDate(fetchStart.getDate() - 1);
     const fetchEnd = new Date(currentMonday);
@@ -124,14 +122,12 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
       .gte('start_time', fetchStart.toISOString()) 
       .lte('start_time', fetchEnd.toISOString());
 
-    // 3. AWAIT ALL (Wait for the slowest one, effectively running in parallel)
     const [storeRes, staffRes, shiftsRes] = await Promise.all([
       storePromise,
       staffPromise,
       shiftsPromise
     ]);
 
-    // 4. UPDATE STATE (Note: We do NOT set loading=true at start, avoiding flicker)
     if (storeRes.data) setStore(storeRes.data);
     if (staffRes.data) setStaffList(staffRes.data);
     if (shiftsRes.data) setShifts(shiftsRes.data);
@@ -143,10 +139,8 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
     fetchData();
   }, [storeId, queryDate]); 
 
-  // --- 3. ACTIONS (UPDATED FOR SMOOTHNESS) ---
+  // --- 3. ACTIONS ---
   const handleShiftAdded = async () => {
-    // We await the data refresh so it happens before or during closing
-    // Importantly, we do NOT trigger a full-screen loading spinner
     await fetchData(); 
     setIsModalOpen(false);
   };
@@ -237,8 +231,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
 
             {amIBoss && (
               <div className="flex gap-2 mb-1">
-                
-                {/* --- COVERAGE BUTTON --- */}
+                {/* --- COVERAGE & COPY ONLY (Removed Global Add Shift) --- */}
                 <button
                   onClick={() => setIsCoverageOpen(true)}
                   className="bg-white border border-gray-300 text-black text-xs font-bold uppercase tracking-wider px-4 py-2.5 hover:bg-gray-50 transition-all flex items-center gap-2"
@@ -251,12 +244,6 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
                    currentMonday={currentMonday} 
                    onSuccess={fetchData} 
                 />
-                <button 
-                  onClick={() => openAddModal()}
-                  className="bg-black text-white text-xs font-bold uppercase tracking-wider px-5 py-2.5 hover:bg-gray-800 transition-all"
-                >
-                  + Add Shift
-                </button>
               </div>
             )}
         </div>
@@ -267,7 +254,6 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
           amIBoss={amIBoss}
         />
 
-        {/* --- 3. SWAP REQUESTS (Moved Outside amIBoss block) --- */}
         <div className="mt-6 flex flex-col gap-6">
           <SwapRequests storeId={storeId} />
           {amIBoss && (
@@ -295,9 +281,9 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
                   <span className="font-bold text-sm tracking-widest uppercase">{day.name}</span>
                   <span className={`text-sm ${isToday ? 'text-blue-100' : 'text-gray-400'}`}>{day.dateLabel}</span>
                 </div>
-                <div className="p-3 bg-white min-h-[100px] space-y-2">
+                <div className="p-3 bg-white min-h-[100px] flex flex-col gap-2">
                    {dayShifts.length === 0 ? (
-                      <span className="text-gray-300 text-sm italic">No shifts</span>
+                      <span className="text-gray-300 text-sm italic mb-2">No shifts</span>
                    ) : (
                       dayShifts.map(shift => (
                         <ShiftCard 
@@ -305,11 +291,21 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
                           shift={shift} 
                           staffList={staffList}
                           amIBoss={amIBoss}
-                          currentUserId={currentUserId} // <--- 3. Pass ID
+                          currentUserId={currentUserId}
                           weekDays={weekDays} 
                           onDelete={fetchData}
                         />
                       ))
+                   )}
+
+                   {/* --- MOBILE GHOST ADD BUTTON --- */}
+                   {amIBoss && (
+                     <button
+                       onClick={() => openAddModal(day.isoDate)}
+                       className="w-full py-3 border-2 border-dashed border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50 text-[10px] font-bold uppercase tracking-widest transition-colors mt-auto"
+                     >
+                       + Add
+                     </button>
                    )}
                 </div>
               </div>
@@ -345,10 +341,10 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
                   </div>
                 </div>
 
-                {/* Shifts */}
-                <div className="flex-1 p-2 space-y-3">
+                {/* Shifts Container */}
+                <div className="flex-1 p-2 flex flex-col gap-3">
                   {dayShifts.length === 0 ? (
-                     <div className="h-full flex items-center justify-center min-h-[100px]">
+                     <div className="flex-1 flex items-center justify-center min-h-[50px]">
                        <span className="text-gray-300 text-2xl font-light">·</span>
                      </div>
                   ) : (
@@ -358,19 +354,20 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
                         shift={shift} 
                         staffList={staffList}
                         amIBoss={amIBoss}
-                        currentUserId={currentUserId} // <--- 3. Pass ID
+                        currentUserId={currentUserId}
                         weekDays={weekDays} 
                         onDelete={fetchData}
                       />
                     ))
                   )}
                   
+                  {/* --- DESKTOP GHOST ADD BUTTON --- */}
                   {amIBoss && (
                     <button
                       onClick={() => openAddModal(day.isoDate)}
-                      className="w-full py-3 text-gray-300 hover:text-black hover:bg-gray-50 border border-transparent hover:border-gray-300 rounded text-xs font-bold uppercase transition-all opacity-0 hover:opacity-100 hidden md:block"
+                      className="w-full py-3 border-2 border-dashed border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50 text-[10px] font-bold uppercase tracking-widest transition-colors mt-auto opacity-70 hover:opacity-100"
                     >
-                      +
+                      + Add
                     </button>
                   )}
                 </div>
