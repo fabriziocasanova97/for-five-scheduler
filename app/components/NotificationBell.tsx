@@ -15,8 +15,8 @@ export default function NotificationBell() {
   const [count, setCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [role, setRole] = useState(null); // Store user role
-  const [userId, setUserId] = useState(null); // Store user ID
+  const [role, setRole] = useState(null); 
+  const [userId, setUserId] = useState(null); 
   const router = useRouter();
 
   useEffect(() => {
@@ -100,19 +100,18 @@ export default function NotificationBell() {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
 
-          <div className="absolute right-0 mt-3 w-80 bg-white border border-gray-800 rounded shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 origin-top-right">
+          <div className="absolute right-0 mt-3 w-80 bg-white rounded-sm border-2 border-black shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 origin-top-right">
             
             {/* Header */}
             <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-500">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-black">
                 Notifications
               </span>
               {count > 0 && (
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  // Change color based on role (Purple for Manager, Red for Urgent/Barista)
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 border border-current uppercase tracking-wider ${
                   (role === 'Manager' || role === 'Operations') 
-                    ? 'text-purple-700 bg-purple-100' 
-                    : 'text-red-700 bg-red-100'
+                    ? 'text-purple-700 bg-purple-50' 
+                    : 'text-red-700 bg-red-50'
                 }`}>
                   {count} { (role === 'Manager' || role === 'Operations') ? 'Pending' : 'Alerts' }
                 </span>
@@ -122,20 +121,20 @@ export default function NotificationBell() {
             {/* List */}
             <div className="max-h-80 overflow-y-auto bg-white min-h-[120px]">
               {notifications.length === 0 ? (
+                // EMPTY STATE
                 <div className="flex flex-col items-center justify-center h-full py-8 text-center">
-                  <div className="bg-gray-50 p-3 rounded-full mb-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8 text-gray-300 mb-2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                     </svg>
-                  </div>
-                  <p className="text-xs font-bold text-gray-900 uppercase tracking-widest">
+                  <p className="text-xs font-extrabold text-gray-900 uppercase tracking-widest">
                     All Caught Up
                   </p>
-                  <p className="text-[10px] text-gray-400 mt-1">
+                  <p className="text-[10px] text-gray-400 mt-1 font-medium">
                     No pending actions required.
                   </p>
                 </div>
               ) : (
+                // NOTIFICATIONS LIST
                 notifications.map(notif => {
                   const isDenied = notif.swap_status === 'denied';
                   return (
@@ -145,34 +144,37 @@ export default function NotificationBell() {
                           setIsOpen(false);
                           router.push(`/store/${notif.store_id}`);
                       }}
-                      className="p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors group relative"
+                      className={`
+                        p-4 border-b border-gray-100 cursor-pointer transition-colors group relative border-l-4
+                        ${isDenied 
+                            ? 'border-l-red-600 bg-red-50/50 hover:bg-red-50' 
+                            : 'border-l-purple-600 bg-white hover:bg-purple-50'
+                        }
+                      `}
                     >
-                      <div className="flex items-start gap-3">
-                          {/* Dot Indicator Color Logic */}
-                          <div className={`mt-1.5 w-2 h-2 rounded-full group-hover:scale-110 transition-transform shadow-sm ${
-                            isDenied ? 'bg-red-600' : 'bg-purple-600'
-                          }`}></div>
-                          
-                          <div>
-                              <p className={`text-xs font-bold uppercase tracking-wide transition-colors ${
-                                isDenied ? 'text-red-700 group-hover:text-red-800' : 'text-gray-900 group-hover:text-purple-700'
+                      <div className="flex flex-col gap-1">
+                          <div className="flex justify-between items-start">
+                              <p className={`text-xs font-bold uppercase tracking-wide ${
+                                isDenied ? 'text-red-700' : 'text-gray-900'
                               }`}>
                                 {isDenied ? 'Swap Rejected' : 'Swap Request'}
                               </p>
                               
-                              <p className="text-xs text-gray-500 mt-0.5">
-                                  {isDenied 
-                                    ? "Action needed: Acknowledge alert at " 
-                                    : "Action needed at "
-                                  }
-                                  <span className="font-bold text-black">{notif.stores?.name}</span>
-                              </p>
-                              <p className="text-[10px] text-gray-400 mt-1.5 font-medium">
-                                  {new Date(notif.start_time).toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'})}
+                              {/* TIMESTAMP - Upper Right */}
+                              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">
+                                  {new Date(notif.start_time).toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'})}
                               </p>
                           </div>
                           
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400">
+                          <p className="text-xs text-gray-600">
+                              {isDenied 
+                                ? "Action needed: Acknowledge alert at " 
+                                : "Action needed at "
+                              }
+                              <span className="font-bold text-black border-b border-gray-300 pb-0.5">{notif.stores?.name}</span>
+                          </p>
+                          
+                          <div className="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400">
                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                                <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                              </svg>

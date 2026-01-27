@@ -67,7 +67,11 @@ export default function MasterGrid({ stores, shifts, weekDays, todayIso }: Maste
 
   return (
     <div className="flex-1 overflow-auto bg-white relative">
-      <div className="max-w-[1800px] mx-auto mt-4"> 
+      {/* UPDATED: Added 'px-6' to align with the Header 
+         This wrapper constrains the width but allows the table to scroll 
+         horizontally within the parent if needed.
+      */}
+      <div className="max-w-[1300px] mx-auto mt-4 px-6"> 
         <table className="w-full text-left border-collapse">
           <thead>
             <tr>

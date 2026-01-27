@@ -147,7 +147,7 @@ function OverviewContent() {
       
       {/* HEADER SECTION */}
       <div className="bg-white border-b border-gray-200 px-6 py-6 shadow-sm flex-shrink-0 z-50 relative">
-        <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-end max-w-[1800px] mx-auto">
+        <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-end max-w-[1250px] mx-auto">
           
           <div className="flex flex-col gap-1">
             <Link href="/" className="text-xs font-bold text-gray-400 hover:text-black uppercase tracking-widest mb-2 transition-colors">
@@ -180,7 +180,7 @@ function OverviewContent() {
 
       {/* --- FILTER BAR (ALIGNED) --- */}
       <div className="border-b border-gray-200 bg-gray-50/50 flex-shrink-0 z-40">
-        <div className="max-w-[1800px] mx-auto flex h-14">
+        <div className="max-w-[1250px] mx-auto flex h-14">
             
             {/* Left Column (Aligns with Store Name Column: w-40) */}
             <div className="w-40 flex-shrink-0 border-r border-gray-300 flex items-center justify-center gap-3 px-4 bg-gray-100/50">

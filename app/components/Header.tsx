@@ -245,16 +245,30 @@ export default function Header() {
             </div>
           </div>
 
-          {/* MOBILE MENU TOGGLE (Animated Burger) */}
+          {/* MOBILE MENU TOGGLE (Refactored Absolute Positioning) */}
           <div className="md:hidden flex items-center gap-4 z-50">
             <NotificationBell />
-            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-white relative focus:outline-none p-2">
+            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-white relative focus:outline-none p-2 group">
               <span className="sr-only">Open Menu</span>
-              <div className="space-y-1.5 relative w-6 h-4">
-                 <span className={`block w-6 h-0.5 bg-white transition-transform duration-300 ${isMenuOpen ? 'rotate-45 translate-y-1.5' : ''}`}></span>
-                 <span className={`block w-6 h-0.5 bg-white transition-opacity duration-300 ${isMenuOpen ? 'opacity-0' : ''}`}></span>
-                 <span className={`block w-6 h-0.5 bg-white transition-transform duration-300 ${isMenuOpen ? '-rotate-45 -translate-y-2.5' : ''}`}></span>
+              
+              {/* REFACTORED ICON CONTAINER */}
+              <div className="relative w-6 h-5">
+                {/* Top Line: Slides to center (top-2.5) and rotates */}
+                <span className={`absolute left-0 h-0.5 w-6 bg-white transition-all duration-300 ease-in-out rounded-full ${
+                  isMenuOpen ? 'top-2.5 rotate-45' : 'top-0'
+                }`} />
+                
+                {/* Middle Line: Fades out in place */}
+                <span className={`absolute left-0 h-0.5 w-6 bg-white transition-all duration-300 ease-in-out rounded-full top-2.5 ${
+                  isMenuOpen ? 'opacity-0' : 'opacity-100'
+                }`} />
+                
+                {/* Bottom Line: Slides to center (top-2.5) and rotates */}
+                <span className={`absolute left-0 h-0.5 w-6 bg-white transition-all duration-300 ease-in-out rounded-full ${
+                  isMenuOpen ? 'top-2.5 -rotate-45' : 'top-5'
+                }`} />
               </div>
+
               {!isMenuOpen && hasOpenings && (
                   <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-600 border border-black" />
               )}

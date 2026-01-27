@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { use, useEffect, useState } from 'react'; 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import useSWR from 'swr'; // <--- PERFORMANCE UPGRADE
+import useSWR, { mutate } from 'swr'; // <--- PERFORMANCE UPGRADE
 
 // Components
 import AddShiftModal from '@/app/components/AddShiftModal';
@@ -37,7 +37,6 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
   const queryDate = searchParams.get('date');
 
   // --- AUTH STATE ---
-  // We keep this simple logic to avoid complex auth providers for now
   const [amIBoss, setAmIBoss] = useState(false); 
   const [currentUserId, setCurrentUserId] = useState('');
 
@@ -89,6 +88,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
   const { data: store, isLoading: storeLoading } = useSWR(
     ['store', storeId], 
     async () => {
+      // ✅ We use select('*') here, so it definitely fetches 'notes' if the column exists
       const { data } = await supabase.from('stores').select('*').eq('id', storeId).single();
       return data;
     }
@@ -104,7 +104,6 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
   );
 
   // C. Fetch Shifts (Cached by Store + Date Range)
-  // This key ensures that when you switch weeks, SWR knows it's different data
   const shiftsKey = ['shifts', storeId, startIso, endIso];
   const { data: shifts, mutate: mutateShifts, isLoading: shiftsLoading } = useSWR(
     shiftsKey,
@@ -135,7 +134,7 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
 
   // --- ACTIONS ---
   const handleShiftAdded = async () => {
-    await mutateShifts(); // Only re-fetches the shifts, not the whole page
+    await mutateShifts(); 
     setIsModalOpen(false);
   };
 
@@ -144,7 +143,6 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
     setIsModalOpen(true);
   };
 
-  // Filter shifts for the current view
   const weekStartStr = weekDays[0].isoDate;
   const weekEndDate = new Date(weekDays[6].isoDate);
   weekEndDate.setDate(weekEndDate.getDate() + 1); 
@@ -158,7 +156,6 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
   const canGoPrev = true;
   let canGoNext = false;
 
-  // We assume loading is done if we have data or if the specific query isn't loading
   if (amIBoss) {
      canGoNext = true;
   } else {
@@ -225,7 +222,6 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
         {/* Store Title & Controls */}
         <div className="border-b-2 border-black pb-4 mb-4 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
             <h1 className="text-4xl md:text-5xl font-extrabold uppercase tracking-widest text-left">
-              {/* Optimistic UI: If store is loading, show 'Loading...' but keep layout stable */}
               {storeLoading ? <span className="text-gray-200">Loading...</span> : store?.name}
             </h1>
 
@@ -247,9 +243,14 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
             )}
         </div>
 
+        {/* 👇 THE FIX IS HERE 👇 
+            We add `key={store?.notes}` to force the component 
+            to re-render when the note data arrives. 
+        */}
         <StoreNote 
+          key={store?.notes || 'empty-note'} 
           storeId={storeId} 
-          initialNote={store?.notes} 
+          initialNote={store?.notes || ''} 
           amIBoss={amIBoss}
         />
 
@@ -267,8 +268,6 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
 
       {/* --- SCHEDULE GRID --- */}
       <main className="max-w-7xl mx-auto px-4 pb-12">
-        {/* Only show loader if we have NO data AND we are fetching. 
-            If we have cached data, we show that instead (Stale-While-Revalidate). */}
         {shiftsLoading && !shifts ? (
              <div className="py-20 text-center">
                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
