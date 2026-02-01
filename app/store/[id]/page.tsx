@@ -22,7 +22,8 @@ const supabase = createClient(
 );
 
 // --- HELPER: FORCE LOCAL DATE STRING (YYYY-MM-DD) ---
-const getLocalISOString = (date: Date) => {
+const getLocalISOString = (dateStrOrObj: Date | string) => {
+  const date = new Date(dateStrOrObj);
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
@@ -149,7 +150,10 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
   const weekEndStr = getLocalISOString(weekEndDate);
 
   const currentWeekShifts = shifts 
-    ? shifts.filter((s: any) => s.start_time >= weekStartStr && s.start_time < weekEndStr)
+    ? shifts.filter((s: any) => {
+        // Broad filter for the whole week range
+        return s.start_time >= fetchStart.toISOString() && s.start_time < fetchEnd.toISOString();
+      })
     : [];
 
   // --- NAVIGATION PERMISSION LOGIC ---
@@ -278,7 +282,12 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
                 {/* Mobile View */}
                 <div className="md:hidden flex flex-col gap-6">
                 {weekDays.map((day) => {
-                    const dayShifts = currentWeekShifts.filter((s: any) => s.start_time.startsWith(day.isoDate));
+                    const dayShifts = currentWeekShifts.filter((s: any) => {
+                       // FIXED: Convert UTC shift time to local ISO string before comparison
+                       const shiftLocalIso = getLocalISOString(s.start_time);
+                       return shiftLocalIso === day.isoDate;
+                    });
+                    
                     dayShifts.sort((a: any, b: any) => a.start_time.localeCompare(b.start_time));
                     const isToday = day.isoDate === todayIso;
 
@@ -322,7 +331,12 @@ export default function StorePage({ params }: { params: Promise<{ id: string }> 
                 {/* Desktop View */}
                 <div className="hidden md:grid grid-cols-7 min-h-[600px] border-l border-gray-200 border-b border-gray-200">
                 {weekDays.map((day) => {
-                    const dayShifts = currentWeekShifts.filter((s: any) => s.start_time.startsWith(day.isoDate));
+                    const dayShifts = currentWeekShifts.filter((s: any) => {
+                       // FIXED: Convert UTC shift time to local ISO string before comparison
+                       const shiftLocalIso = getLocalISOString(s.start_time);
+                       return shiftLocalIso === day.isoDate;
+                    });
+                    
                     dayShifts.sort((a: any, b: any) => a.start_time.localeCompare(b.start_time));
                     const isToday = day.isoDate === todayIso;
 
