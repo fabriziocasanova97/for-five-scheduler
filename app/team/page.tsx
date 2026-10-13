@@ -1,13 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/app/lib/supabaseClient';
 import Link from 'next/link';
 
 // NOTE: We removed AddStaffForm to prevent "Ghost Users".
 // Users should be added via the Supabase Auth Dashboard.
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export default async function TeamPage() {
   // Fetch profiles and sort by name

@@ -1,17 +1,12 @@
 // @ts-nocheck
 'use client';
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/app/lib/supabaseClient';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
 import { isBoss } from '@/app/utils/roles';
 import MasterGrid from '@/app/components/MasterGrid'; 
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 // --- ROW DOT COLORS ---
 const ROW_COLORS = [

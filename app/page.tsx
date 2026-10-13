@@ -1,18 +1,13 @@
 // @ts-nocheck
 'use client';
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/app/lib/supabaseClient';
 import Link from 'next/link';
 import { useEffect, useState, Suspense } from 'react';
 import { isBoss } from '@/app/utils/roles';
 
 // 👇 NEW: Import the dedicated component
 import LoginScreen from '@/app/components/LoginScreen'; 
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 const getStoreImage = (storeName: string) => {
   if (!storeName) return '';

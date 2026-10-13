@@ -2,12 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from '@/app/lib/supabaseClient';
 
 export default function CopyWeekButton({ storeId, currentMonday }) {
   const [loading, setLoading] = useState(false);

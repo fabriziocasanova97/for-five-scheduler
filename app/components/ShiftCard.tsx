@@ -1,15 +1,10 @@
 // @ts-nocheck
 'use client';
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/app/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import EditShiftModal from './EditShiftModal';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export default function ShiftCard({ shift, amIBoss, weekDays, currentUserId, onDelete }) {
   const router = useRouter();

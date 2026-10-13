@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/app/lib/supabaseClient';
 import { use, useEffect, useState } from 'react'; 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -15,11 +15,6 @@ import LaborSummary from '@/app/components/LaborSummary';
 import StoreNote from '@/app/components/StoreNote'; 
 import SwapRequests from '@/app/components/SwapRequests';
 import FindCoveragePanel from '@/app/components/FindCoveragePanel';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 // --- HELPER: FORCE LOCAL DATE STRING (YYYY-MM-DD) ---
 const getLocalISOString = (dateStrOrObj: Date | string) => {
